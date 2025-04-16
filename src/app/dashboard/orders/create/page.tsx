@@ -189,20 +189,28 @@ export default function CreateOrderPage() {
 
       // Customer already created above
 
-      // Make sure user.id is not null
-      if (!user || !user.id) {
-        console.error('User ID is null or undefined, using hardcoded ID for testing');
-        // Throw error in production, but for testing we'll use a hardcoded ID
-        // throw new Error('User ID is null or undefined');
+      // Make sure we have a valid user ID for the order history
+      // Get all profiles to find a valid user ID
+      const { data: allProfiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, name, role')
+        .limit(10);
+
+      if (profilesError) {
+        console.error('Error fetching profiles:', profilesError);
+        throw new Error('Failed to fetch profiles for order history');
       }
 
-      // Get profiles to find a valid user ID
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id')
-        .limit(1);
+      if (!allProfiles || allProfiles.length === 0) {
+        console.error('No profiles found in the database');
+        throw new Error('No profiles found for order history');
+      }
 
-      const fallbackUserId = profiles && profiles.length > 0 ? profiles[0].id : '9155a1e2-84d0-44ec-8174-f27f8b9cc03e';
+      // Find a shop owner or use the first profile
+      const shopOwner = allProfiles.find(p => p.role === 'shop_owner') || allProfiles[0];
+      const updatedById = (user && user.id) ? user.id : shopOwner.id;
+
+      console.log('Using updated_by ID:', updatedById, 'from user:', shopOwner);
 
       // Create order history entry with explicit updated_by field
       const historyData = {
@@ -210,24 +218,35 @@ export default function CreateOrderPage() {
         status: 'pending',
         notes: 'Order created',
         created_at: new Date().toISOString(),
-        updated_by: (user && user.id) ? user.id : fallbackUserId // Use fallback ID if user.id is null
+        updated_by: updatedById // This MUST NOT be null
       };
 
       console.log('Creating order history with data:', historyData);
 
-      const { error: historyError } = await supabase
-        .from('order_history')
-        .insert(historyData);
+      // Use a direct API call to create the order history
+      try {
+        const historyResponse = await fetch('/api/create-order-history', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(historyData),
+        });
 
-      console.log('Order history creation result:', {
-        orderId: orderData.id,
-        userId: user.id,
-        historyError
-      });
+        const historyResult = await historyResponse.json();
 
-      if (historyError) {
+        if (!historyResult.success) {
+          console.error('Error creating order history via API:', historyResult);
+          throw new Error(historyResult.error || 'Failed to create order history');
+        }
+
+        console.log('Order history created successfully via API:', historyResult);
+      } catch (historyError: any) {
         console.error('Error creating order history:', historyError);
+        throw new Error(`Failed to create order history: ${historyError.message}`);
       }
+
+      // Order history is now created via API call above
 
       setSuccess(true);
       setOrderCreated(true);

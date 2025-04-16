@@ -14,43 +14,43 @@ export async function GET() {
     const { data: profiles, error: profilesError } = await supabaseAdmin
       .from('profiles')
       .select('*');
-    
+
     if (profilesError) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Failed to fetch profiles', 
-        details: profilesError 
+      return NextResponse.json({
+        success: false,
+        error: 'Failed to fetch profiles',
+        details: profilesError
       }, { status: 500 });
     }
-    
+
     // Find a shop owner
     const shopOwner = profiles.find(p => p.role === 'shop_owner');
-    
+
     if (!shopOwner) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'No shop owner found in profiles', 
-        profiles 
+      return NextResponse.json({
+        success: false,
+        error: 'No shop owner found in profiles',
+        profiles
       }, { status: 500 });
     }
-    
+
     // Step 2: Get or create a customer
     // First check if any customers exist
     const { data: existingCustomers, error: customersError } = await supabaseAdmin
       .from('customers')
       .select('*')
       .limit(1);
-    
+
     if (customersError) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Failed to check for existing customers', 
-        details: customersError 
+      return NextResponse.json({
+        success: false,
+        error: 'Failed to check for existing customers',
+        details: customersError
       }, { status: 500 });
     }
-    
+
     let customer;
-    
+
     if (existingCustomers && existingCustomers.length > 0) {
       // Use an existing customer
       customer = existingCustomers[0];
@@ -59,7 +59,7 @@ export async function GET() {
       // Create a new customer
       const timestamp = new Date().toISOString();
       const customerName = `Test Customer ${Date.now()}`;
-      
+
       const { data: newCustomer, error: customerError } = await supabaseAdmin
         .from('customers')
         .insert({
@@ -73,23 +73,23 @@ export async function GET() {
         })
         .select()
         .single();
-      
+
       if (customerError) {
-        return NextResponse.json({ 
-          success: false, 
-          error: 'Customer creation failed', 
-          details: customerError 
+        return NextResponse.json({
+          success: false,
+          error: 'Customer creation failed',
+          details: customerError
         }, { status: 500 });
       }
-      
+
       customer = newCustomer;
       console.log('Created new customer:', customer);
     }
-    
+
     // Step 3: Create a test order
     const timestamp = new Date().toISOString();
     const trackingNumber = `TEST-${Math.floor(100000 + Math.random() * 900000)}`;
-    
+
     const orderData = {
       tracking_number: trackingNumber,
       shop_id: shopOwner.id,
@@ -100,25 +100,37 @@ export async function GET() {
       created_at: timestamp,
       updated_at: timestamp
     };
-    
+
     console.log('Creating order with data:', orderData);
-    
+
     const { data: order, error: orderError } = await supabaseAdmin
       .from('orders')
       .insert(orderData)
       .select()
       .single();
-    
+
     if (orderError) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Order creation failed', 
+      return NextResponse.json({
+        success: false,
+        error: 'Order creation failed',
         details: orderError,
         orderData
       }, { status: 500 });
     }
-    
+
     // Step 4: Create order history entry
+    // Make absolutely sure shopOwner.id is not null
+    if (!shopOwner || !shopOwner.id) {
+      return NextResponse.json({
+        success: false,
+        error: 'Shop owner ID is null or undefined',
+        shopOwner
+      }, { status: 500 });
+    }
+
+    // Double-check that we have a valid shop owner ID
+    console.log('Shop owner ID for order history:', shopOwner.id);
+
     const historyData = {
       order_id: order.id,
       status: 'pending',
@@ -126,38 +138,45 @@ export async function GET() {
       created_at: timestamp,
       updated_by: shopOwner.id
     };
-    
+
     console.log('Creating order history with data:', historyData);
-    
+
+    // Use a direct SQL query to insert the order history
     const { data: history, error: historyError } = await supabaseAdmin
       .from('order_history')
-      .insert(historyData)
+      .insert({
+        order_id: order.id,
+        status: 'pending',
+        notes: 'Test order created',
+        created_at: timestamp,
+        updated_by: shopOwner.id // Explicitly set this value
+      })
       .select()
       .single();
-    
+
     if (historyError) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Order history creation failed', 
+      return NextResponse.json({
+        success: false,
+        error: 'Order history creation failed',
         details: historyError,
         historyData
       }, { status: 500 });
     }
-    
-    return NextResponse.json({ 
-      success: true, 
+
+    return NextResponse.json({
+      success: true,
       message: 'Test order created successfully',
       shopOwner,
       customer,
       order,
       history
     });
-    
+
   } catch (error: any) {
-    return NextResponse.json({ 
-      success: false, 
-      error: 'Unexpected error', 
-      details: error.message 
+    return NextResponse.json({
+      success: false,
+      error: 'Unexpected error',
+      details: error.message
     }, { status: 500 });
   }
 }
