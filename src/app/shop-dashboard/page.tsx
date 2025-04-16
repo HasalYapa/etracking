@@ -99,66 +99,35 @@ export default function ShopDashboard() {
     try {
       console.log('Loading orders for shop ID:', shopId);
 
-      // In a real implementation, we would fetch orders from Supabase
-      // For now, we'll use mock data but filter it by shop ID
+      // Fetch real orders from Supabase
+      const { data: ordersData, error } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          customers(*),
+          driver:profiles(id, name, email, phone)
+        `)
+        .eq('shop_id', shopId)
+        .order('created_at', { ascending: false });
 
-      // This would be the actual query in production:
-      // const { data: ordersData, error } = await supabase
-      //   .from('orders')
-      //   .select('*, driver:drivers(*)')
-      //   .eq('shop_id', shopId);
+      if (error) {
+        console.error('Error fetching orders:', error);
+        throw error;
+      }
 
-      // Mock data for now, but with shop_id added
-      const allMockOrders = [
-        {
-          id: '1',
-          tracking_number: 'TRK12345',
-          shop_id: '9939c3f3-e3fc-4af7-9ecd-31ab535bce59', // Sampath's ID
-          customer: { name: 'John Doe', phone: '123-456-7890' },
-          delivery_address: '123 Main St, City',
-          items: 'Laptop, Mouse',
-          status: 'pending',
-          driver: null,
-          created_at: new Date().toISOString()
-        },
-        {
-          id: '2',
-          tracking_number: 'TRK67890',
-          shop_id: '9939c3f3-e3fc-4af7-9ecd-31ab535bce59', // Sampath's ID
-          customer: { name: 'Jane Smith', phone: '987-654-3210' },
-          delivery_address: '456 Oak Ave, Town',
-          items: 'Headphones, Keyboard',
-          status: 'assigned',
-          driver: { name: 'Driver 1', id: '35fbcf81-5f57-4267-a7af-9d52602761d1' },
-          created_at: new Date().toISOString()
-        },
-        {
-          id: '3',
-          tracking_number: 'TRK24680',
-          shop_id: '74622a48-0f62-43a1-a330-e82ac4f4e34d', // Another shop owner's ID
-          customer: { name: 'Bob Johnson', phone: '555-123-4567' },
-          delivery_address: '789 Pine St, Village',
-          items: 'Monitor, Speakers',
-          status: 'in_transit',
-          driver: { name: 'Driver 2', id: '9155a1e2-84d0-44ec-8174-f27f8b9cc03e' },
-          created_at: new Date().toISOString()
-        },
-        {
-          id: '4',
-          tracking_number: 'TRK13579',
-          shop_id: '9939c3f3-e3fc-4af7-9ecd-31ab535bce59', // Sampath's ID
-          customer: { name: 'Alice Brown', phone: '555-987-6543' },
-          delivery_address: '321 Elm St, County',
-          items: 'Printer, Scanner',
-          status: 'delivered',
-          driver: { name: 'Driver 1', id: '35fbcf81-5f57-4267-a7af-9d52602761d1' },
-          created_at: new Date().toISOString()
-        }
-      ];
+      console.log(`Found ${ordersData?.length || 0} orders for shop ID ${shopId}`);
+      console.log('Orders data:', ordersData);
 
-      // Filter orders by shop ID
-      const shopOrders = allMockOrders.filter(order => order.shop_id === shopId);
-      console.log(`Found ${shopOrders.length} orders for shop ID ${shopId}`);
+      // Transform the data to match the expected format
+      const shopOrders = ordersData?.map(order => ({
+        ...order,
+        customer: {
+          name: order.customers?.name || 'Unknown',
+          phone: order.customers?.phone || 'N/A'
+        },
+        items: order.items || order.delivery_notes || 'No items specified',
+        driver: order.driver || null
+      })) || [];
 
       setOrders(shopOrders);
 
@@ -166,7 +135,11 @@ export default function ShopDashboard() {
       setStats({
         total: shopOrders.length,
         pending: shopOrders.filter(order => order.status === 'pending').length,
-        in_transit: shopOrders.filter(order => order.status === 'in_transit' || order.status === 'assigned').length,
+        in_transit: shopOrders.filter(order =>
+          order.status === 'in_transit' ||
+          order.status === 'assigned' ||
+          order.status === 'picked_up'
+        ).length,
         delivered: shopOrders.filter(order => order.status === 'delivered').length
       });
     } catch (err) {
@@ -183,7 +156,7 @@ export default function ShopDashboard() {
     }
   };
 
-  const handleNewOrderSubmit = (e: React.FormEvent) => {
+  const handleNewOrderSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!profile || !profile.id) {
@@ -191,83 +164,161 @@ export default function ShopDashboard() {
       return;
     }
 
-    // Create new order
-    const newOrderData = {
-      id: Math.random().toString(36).substring(2, 9),
-      tracking_number: 'TRK' + Math.floor(Math.random() * 100000),
-      shop_id: profile.id, // Add shop_id to link order to this shop owner
-      customer: {
-        name: newOrder.customer_name,
-        phone: newOrder.customer_phone
-      },
-      delivery_address: newOrder.delivery_address,
-      items: newOrder.items,
-      status: 'pending',
-      driver: null,
-      created_at: new Date().toISOString()
-    };
+    try {
+      setLoading(true);
 
-    // In a real implementation, we would save to Supabase:
-    // const { data, error } = await supabase
-    //   .from('orders')
-    //   .insert({
-    //     tracking_number: newOrderData.tracking_number,
-    //     shop_id: profile.id,
-    //     customer_name: newOrder.customer_name,
-    //     customer_phone: newOrder.customer_phone,
-    //     delivery_address: newOrder.delivery_address,
-    //     items: newOrder.items,
-    //     status: 'pending',
-    //     created_at: new Date().toISOString()
-    //   });
+      // Generate tracking number
+      const trackingNumber = 'TRK' + Math.floor(Math.random() * 100000);
 
-    // Add to orders
-    setOrders(prev => [newOrderData, ...prev]);
+      // First create the customer
+      const { data: customerData, error: customerError } = await supabase
+        .from('customers')
+        .insert({
+          name: newOrder.customer_name,
+          phone: newOrder.customer_phone,
+          shop_id: profile.id,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .select()
+        .single();
 
-    // Update stats
-    setStats(prev => ({
-      ...prev,
-      total: prev.total + 1,
-      pending: prev.pending + 1
-    }));
+      if (customerError) {
+        console.error('Error creating customer:', customerError);
+        throw customerError;
+      }
 
-    // Reset form
-    setNewOrder({
-      customer_name: '',
-      customer_phone: '',
-      delivery_address: '',
-      items: ''
-    });
+      console.log('Customer created:', customerData);
 
-    // Hide form
-    setShowNewOrderForm(false);
+      // Then create the order
+      const { data: orderData, error: orderError } = await supabase
+        .from('orders')
+        .insert({
+          tracking_number: trackingNumber,
+          shop_id: profile.id,
+          customer_id: customerData.id,
+          delivery_address: newOrder.delivery_address,
+          delivery_notes: newOrder.items,
+          status: 'pending',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .select()
+        .single();
 
-    alert('New order created successfully!');
+      if (orderError) {
+        console.error('Error creating order:', orderError);
+        throw orderError;
+      }
+
+      console.log('Order created:', orderData);
+
+      // Create order history
+      const { error: historyError } = await supabase
+        .from('order_history')
+        .insert({
+          order_id: orderData.id,
+          status: 'pending',
+          notes: 'Order created',
+          created_at: new Date().toISOString(),
+          updated_by: profile.id
+        });
+
+      if (historyError) {
+        console.error('Error creating order history:', historyError);
+        // Continue anyway, this is not critical
+      }
+
+      // Reset form
+      setNewOrder({
+        customer_name: '',
+        customer_phone: '',
+        delivery_address: '',
+        items: ''
+      });
+
+      // Hide form
+      setShowNewOrderForm(false);
+
+      // Reload orders
+      await loadShopOrders(profile.id);
+
+      alert('New order created successfully!');
+    } catch (err: any) {
+      console.error('Error creating order:', err);
+      alert(`Error creating order: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleAssignDriver = (orderId: string) => {
-    // In a real app, you would show a driver selection UI
-    // For now, we'll just assign a mock driver
+  const handleAssignDriver = async (orderId: string) => {
+    try {
+      setLoading(true);
 
-    setOrders(prev => prev.map(order => {
-      if (order.id === orderId) {
-        return {
-          ...order,
-          status: 'assigned',
-          driver: { name: 'Driver ' + Math.floor(Math.random() * 3 + 1) }
-        };
+      // In a real app, you would show a driver selection UI
+      // For now, we'll just assign a random driver from the database
+
+      // Get available drivers
+      const { data: drivers, error: driversError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('role', 'driver');
+
+      if (driversError) {
+        console.error('Error fetching drivers:', driversError);
+        throw driversError;
       }
-      return order;
-    }));
 
-    // Update stats
-    setStats(prev => ({
-      ...prev,
-      pending: prev.pending - 1,
-      in_transit: prev.in_transit + 1
-    }));
+      if (!drivers || drivers.length === 0) {
+        alert('No drivers available. Please add drivers first.');
+        return;
+      }
 
-    alert('Driver assigned successfully!');
+      // Select a random driver
+      const randomDriver = drivers[Math.floor(Math.random() * drivers.length)];
+
+      // Update the order
+      const { error: updateError } = await supabase
+        .from('orders')
+        .update({
+          status: 'assigned',
+          driver_id: randomDriver.id,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', orderId);
+
+      if (updateError) {
+        console.error('Error updating order:', updateError);
+        throw updateError;
+      }
+
+      // Create order history
+      const { error: historyError } = await supabase
+        .from('order_history')
+        .insert({
+          order_id: orderId,
+          status: 'assigned',
+          notes: `Assigned to driver ${randomDriver.name}`,
+          created_at: new Date().toISOString(),
+          updated_by: profile.id
+        });
+
+      if (historyError) {
+        console.error('Error creating order history:', historyError);
+        // Continue anyway, this is not critical
+      }
+
+      // Reload orders
+      await loadShopOrders(profile.id);
+
+      alert(`Driver ${randomDriver.name} assigned successfully!`);
+    } catch (err: any) {
+      console.error('Error assigning driver:', err);
+      alert(`Error assigning driver: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Show loading state
