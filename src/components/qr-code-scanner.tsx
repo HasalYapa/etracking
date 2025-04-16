@@ -135,7 +135,28 @@ export default function QRCodeScanner({ onScan, onError }: QRCodeScannerProps) {
   const handleScan = (data: string) => {
     try {
       console.log('QR code scanned successfully:', data);
-      // Parse QR code data
+
+      // Try to parse as JSON first
+      try {
+        const jsonData = JSON.parse(data);
+        console.log('Parsed as JSON:', jsonData);
+        if (jsonData.trackingNumber) {
+          // Stop scanning after successful scan
+          stopScanner();
+
+          // Call the onScan callback with parsed data
+          onScan({
+            trackingNumber: jsonData.trackingNumber,
+            location: jsonData.location || 'Unknown',
+            driverPhone: jsonData.driverPhone
+          });
+          return;
+        }
+      } catch (jsonErr) {
+        console.log('Not valid JSON, trying pipe format');
+      }
+
+      // Parse QR code data as pipe-delimited
       const parts = data.split('|');
 
       if (parts.length >= 2) {
@@ -150,6 +171,11 @@ export default function QRCodeScanner({ onScan, onError }: QRCodeScannerProps) {
 
         // Call the onScan callback with parsed data
         onScan({ trackingNumber, location, driverPhone });
+      } else if (data.startsWith('ET-')) {
+        // If it's just a tracking number
+        console.log('Parsed as tracking number only:', data);
+        stopScanner();
+        onScan({ trackingNumber: data, location: 'Scanned Location', driverPhone: undefined });
       } else {
         setScanError('Invalid QR code format');
         if (onError) onError('Invalid QR code format');
