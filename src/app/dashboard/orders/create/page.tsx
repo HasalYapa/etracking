@@ -92,22 +92,38 @@ export default function CreateOrderPage() {
       // Generate tracking number
       const trackingNumber = `ORD-${Math.floor(100000 + Math.random() * 900000)}`;
 
-      // Create order
+      // Create customer first
+      const { data: customerData, error: customerCreateError } = await supabase
+        .from('customers')
+        .upsert({
+          name: formData.customerName,
+          phone: formData.customerPhone,
+          email: formData.customerEmail || null,
+          address: formData.deliveryAddress, // Using delivery address as customer address
+          shop_id: user.id,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+      if (customerCreateError) {
+        throw customerCreateError;
+      }
+
+      // Create order with customer_id
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
         .insert({
           tracking_number: trackingNumber,
           shop_id: user.id,
+          customer_id: customerData.id, // Use the customer ID from the previous step
           driver_id: formData.driverId || null,
           status: 'pending',
-          customer_name: formData.customerName,
-          customer_phone: formData.customerPhone,
-          customer_email: formData.customerEmail || null,
           delivery_address: formData.deliveryAddress,
           delivery_notes: formData.deliveryNotes || null,
           created_at: new Date().toISOString(),
-          last_updated: new Date().toISOString(),
-          dispatch_location: shopLocation,
+          updated_at: new Date().toISOString(),
         })
         .select()
         .single();
@@ -116,21 +132,7 @@ export default function CreateOrderPage() {
         throw orderError;
       }
 
-      // Create customer if doesn't exist
-      const { error: customerError } = await supabase
-        .from('customers')
-        .upsert({
-          name: formData.customerName,
-          phone: formData.customerPhone,
-          email: formData.customerEmail || null,
-          shop_id: user.id,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        });
-
-      if (customerError) {
-        console.error('Error creating customer:', customerError);
-      }
+      // Customer already created above
 
       // Create order history entry
       const { error: historyError } = await supabase
@@ -140,6 +142,7 @@ export default function CreateOrderPage() {
           status: 'pending',
           notes: 'Order created',
           created_at: new Date().toISOString(),
+          updated_by: user.id,
         });
 
       if (historyError) {
