@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { CardSpotlight } from '@/components/ui/card-spotlight';
+import { CardSpotlight } from '@/components/ui/CardSpotlight';
 
 export default function DirectAccess() {
   return (
