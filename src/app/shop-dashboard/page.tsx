@@ -36,6 +36,8 @@ export default function ShopDashboard() {
   const [newOrder, setNewOrder] = useState({
     customer_name: '',
     customer_phone: '',
+    customer_email: '',
+    customer_address: '',
     delivery_address: '',
     items: ''
   });
@@ -176,6 +178,8 @@ export default function ShopDashboard() {
         .insert({
           name: newOrder.customer_name,
           phone: newOrder.customer_phone,
+          email: newOrder.customer_email || `customer-${Date.now()}@example.com`,
+          address: newOrder.customer_address || newOrder.delivery_address, // Use delivery address as fallback
           shop_id: profile.id,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
@@ -233,6 +237,8 @@ export default function ShopDashboard() {
       setNewOrder({
         customer_name: '',
         customer_phone: '',
+        customer_email: '',
+        customer_address: '',
         delivery_address: '',
         items: ''
       });
@@ -490,6 +496,33 @@ export default function ShopDashboard() {
                     />
                   </div>
                 </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Customer Email
+                    </label>
+                    <input
+                      type="email"
+                      value={newOrder.customer_email}
+                      onChange={(e) => setNewOrder({...newOrder, customer_email: e.target.value})}
+                      placeholder="Optional"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Customer Address
+                    </label>
+                    <input
+                      type="text"
+                      value={newOrder.customer_address}
+                      onChange={(e) => setNewOrder({...newOrder, customer_address: e.target.value})}
+                      placeholder="Required - Customer's home address"
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    />
+                  </div>
+                </div>
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Delivery Address
@@ -498,6 +531,7 @@ export default function ShopDashboard() {
                     type="text"
                     value={newOrder.delivery_address}
                     onChange={(e) => setNewOrder({...newOrder, delivery_address: e.target.value})}
+                    placeholder="Where to deliver the order"
                     required
                     className="w-full px-3 py-2 border border-gray-300 rounded-md"
                   />
