@@ -96,7 +96,7 @@ export async function GET() {
       customer_id: customer.id,
       status: 'pending',
       delivery_address: 'Test Delivery Address',
-      delivery_notes: 'Test delivery notes',
+
       created_at: timestamp,
       updated_at: timestamp
     };

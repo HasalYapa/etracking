@@ -29,8 +29,7 @@ export default function MinimalShopPage() {
     customer_name: '',
     customer_phone: '+94',
     delivery_address: '',
-    tracking_number: generateTrackingNumber(),
-    notes: ''
+    tracking_number: generateTrackingNumber()
   });
 
   // Add a log message with timestamp
@@ -156,8 +155,7 @@ export default function MinimalShopPage() {
         customer_name: '',
         customer_phone: '+94',
         delivery_address: '',
-        tracking_number: generateTrackingNumber(),
-        notes: ''
+        tracking_number: generateTrackingNumber()
       });
 
       setShowOrderForm(false);
@@ -470,16 +468,7 @@ export default function MinimalShopPage() {
                   />
                 </div>
 
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-                  <textarea
-                    name="notes"
-                    value={formData.notes}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                    rows={3}
-                  ></textarea>
-                </div>
+
               </div>
 
               <div className="flex justify-end gap-2">
@@ -561,12 +550,7 @@ export default function MinimalShopPage() {
                   <p className="text-lg">{new Date(selectedOrder.updated_at).toLocaleString()}</p>
                 </div>
 
-                {selectedOrder.notes && (
-                  <div className="col-span-2">
-                    <p className="text-sm font-medium text-gray-500">Notes</p>
-                    <p className="text-lg">{selectedOrder.notes}</p>
-                  </div>
-                )}
+
               </div>
 
               <div className="flex justify-end gap-2">

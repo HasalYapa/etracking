@@ -64,7 +64,7 @@ export async function POST(request: Request) {
         tracking_number: data.tracking_number,
         customer_id: customer.id,
         delivery_address: data.delivery_address,
-        notes: data.notes || '',
+        // notes field doesn't exist in the schema
         status: 'pending',
         shop_id: data.shop_id,
         updated_by: data.shop_id // Set the shop owner as the updater
