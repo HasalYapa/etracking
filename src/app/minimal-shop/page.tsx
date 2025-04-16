@@ -28,7 +28,6 @@ export default function MinimalShopPage() {
   const [formData, setFormData] = useState({
     customer_name: '',
     customer_phone: '+94',
-    customer_address: '',
     delivery_address: '',
     tracking_number: generateTrackingNumber(),
     notes: ''
@@ -156,7 +155,6 @@ export default function MinimalShopPage() {
       setFormData({
         customer_name: '',
         customer_phone: '+94',
-        customer_address: '',
         delivery_address: '',
         tracking_number: generateTrackingNumber(),
         notes: ''
@@ -218,7 +216,7 @@ export default function MinimalShopPage() {
         : orders.filter(order => order.status === statusFilter);
 
       // Create CSV content
-      const headers = ['Tracking Number', 'Customer Name', 'Phone', 'Address', 'Status', 'Created At'];
+      const headers = ['Tracking Number', 'Customer Name', 'Phone', 'Delivery Address', 'Status', 'Created At'];
       const csvContent = [
         headers.join(','),
         ...ordersToExport.map(order => [
@@ -446,17 +444,7 @@ export default function MinimalShopPage() {
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Customer Address</label>
-                  <input
-                    type="text"
-                    name="customer_address"
-                    value={formData.customer_address}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                    required
-                  />
-                </div>
+
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Delivery Address</label>
@@ -556,10 +544,7 @@ export default function MinimalShopPage() {
                   <p className="text-lg">{selectedOrder.customer_phone || 'N/A'}</p>
                 </div>
 
-                <div className="col-span-2">
-                  <p className="text-sm font-medium text-gray-500">Customer Address</p>
-                  <p className="text-lg">{selectedOrder.customer_address || 'N/A'}</p>
-                </div>
+
 
                 <div className="col-span-2">
                   <p className="text-sm font-medium text-gray-500">Delivery Address</p>
