@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
-import QRCodeGenerator from '@/components/qr-code-generator';
+import { supabase } from '../../../../../lib/supabase';
+import QRCodeGenerator from '../../../../../components/qr-code-generator';
 
 export default function CreateOrderPage() {
   const router = useRouter();
@@ -30,7 +30,7 @@ export default function CreateOrderPage() {
     const fetchDrivers = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
-        
+
         if (!user) {
           router.push('/login');
           return;
@@ -83,7 +83,7 @@ export default function CreateOrderPage() {
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      
+
       if (!user) {
         router.push('/login');
         return;
@@ -187,7 +187,7 @@ export default function CreateOrderPage() {
       {orderCreated && newOrderId ? (
         <div className="bg-white rounded-lg shadow-md p-6 mb-8">
           <h2 className="text-xl font-semibold mb-4 text-green-600">Order Created Successfully!</h2>
-          
+
           <div className="mb-6">
             <p className="text-gray-700 mb-2">Your order has been created. You can now:</p>
             <ul className="list-disc list-inside text-gray-600 ml-4">
@@ -196,25 +196,25 @@ export default function CreateOrderPage() {
               <li>Update the order details if needed</li>
             </ul>
           </div>
-          
+
           <div className="flex flex-col md:flex-row gap-6">
             <div className="flex-1">
-              <QRCodeGenerator 
+              <QRCodeGenerator
                 trackingNumber={newOrderId}
                 location={shopLocation}
                 size={200}
               />
             </div>
-            
+
             <div className="flex-1 flex flex-col justify-center">
               <div className="mb-6">
                 <h3 className="text-lg font-medium mb-2">Next Steps:</h3>
                 <p className="text-gray-600 mb-4">
-                  Share this QR code with your driver. When they arrive at the pickup location, 
+                  Share this QR code with your driver. When they arrive at the pickup location,
                   they can scan this code to update the order status.
                 </p>
               </div>
-              
+
               <div className="flex space-x-3">
                 <button
                   onClick={() => router.push(`/dashboard/orders/${newOrderId}`)}
@@ -222,7 +222,7 @@ export default function CreateOrderPage() {
                 >
                   View Order Details
                 </button>
-                
+
                 <button
                   onClick={() => {
                     setOrderCreated(false);
@@ -242,7 +242,7 @@ export default function CreateOrderPage() {
             {/* Customer Information */}
             <div>
               <h2 className="text-lg font-semibold mb-4">Customer Information</h2>
-              
+
               <div className="mb-4">
                 <label htmlFor="customerName" className="block text-sm font-medium text-gray-700 mb-1">
                   Customer Name *
@@ -257,7 +257,7 @@ export default function CreateOrderPage() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
-              
+
               <div className="mb-4">
                 <label htmlFor="customerPhone" className="block text-sm font-medium text-gray-700 mb-1">
                   Phone Number *
@@ -272,7 +272,7 @@ export default function CreateOrderPage() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
-              
+
               <div className="mb-4">
                 <label htmlFor="customerEmail" className="block text-sm font-medium text-gray-700 mb-1">
                   Email Address
@@ -287,11 +287,11 @@ export default function CreateOrderPage() {
                 />
               </div>
             </div>
-            
+
             {/* Delivery Information */}
             <div>
               <h2 className="text-lg font-semibold mb-4">Delivery Information</h2>
-              
+
               <div className="mb-4">
                 <label htmlFor="deliveryAddress" className="block text-sm font-medium text-gray-700 mb-1">
                   Delivery Address *
@@ -306,7 +306,7 @@ export default function CreateOrderPage() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
-              
+
               <div className="mb-4">
                 <label htmlFor="deliveryNotes" className="block text-sm font-medium text-gray-700 mb-1">
                   Delivery Notes
@@ -322,11 +322,11 @@ export default function CreateOrderPage() {
               </div>
             </div>
           </div>
-          
+
           {/* Driver Assignment */}
           <div className="mt-6">
             <h2 className="text-lg font-semibold mb-4">Driver Assignment</h2>
-            
+
             <div className="mb-4">
               <label htmlFor="driverId" className="block text-sm font-medium text-gray-700 mb-1">
                 Assign Driver (Optional)
@@ -350,7 +350,7 @@ export default function CreateOrderPage() {
               </p>
             </div>
           </div>
-          
+
           {/* Submit Button */}
           <div className="mt-8 flex justify-end">
             <button

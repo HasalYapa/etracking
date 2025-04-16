@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
-import Html5QRScanner from '@/components/Html5QrScanner';
+import Html5QRScanner from '../../components/Html5QrScanner';
 
 // Create a Supabase client
 const supabaseUrl = 'https://slujerwtublzuxtzdtyw.supabase.co';

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../../../lib/auth-context';
 import { OrderWithRelations, OrderHistory, Profile } from '../../../../types';
-import QRCodeGenerator from '@/components/qr-code-generator';
+import QRCodeGenerator from '../../../../components/qr-code-generator';
 
 export default function OrderDetails({ params }: { params: { id: string } }) {
   const { id } = params;
