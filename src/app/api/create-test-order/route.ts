@@ -146,8 +146,7 @@ export async function GET() {
           order_id: order.id,
           status: 'pending',
           notes: 'Test order created (direct insert)',
-          created_at: timestamp,
-          updated_by: shopOwner.id
+          created_at: timestamp
         })
         .select()
         .single();
@@ -166,8 +165,7 @@ export async function GET() {
           .from('order_history')
           .insert({
             order_id: order.id,
-            status: 'pending',
-            updated_by: shopOwner.id
+            status: 'pending'
           })
           .select()
           .single();
@@ -197,8 +195,7 @@ export async function GET() {
               order_id: order.id,
               status: 'pending',
               notes: 'Emergency backup insert',
-              created_at: timestamp,
-              updated_by: backupUserId
+              created_at: timestamp
             })
             .select()
             .single();

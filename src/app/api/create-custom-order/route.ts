@@ -66,8 +66,8 @@ export async function POST(request: Request) {
         delivery_address: data.delivery_address,
         // notes field doesn't exist in the schema
         status: 'pending',
-        shop_id: data.shop_id,
-        updated_by: data.shop_id // Set the shop owner as the updater
+        shop_id: data.shop_id
+        // updated_by field doesn't exist in the schema
       })
       .select()
       .single();
