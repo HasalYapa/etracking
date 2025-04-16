@@ -134,18 +134,27 @@ export default function CreateOrderPage() {
 
       // Customer already created above
 
-      // Create order history entry
+      // Make sure user.id is not null
+      if (!user || !user.id) {
+        throw new Error('User ID is null or undefined');
+      }
+
+      // Create order history entry with explicit updated_by field
+      const historyData = {
+        order_id: orderData.id,
+        status: 'pending',
+        notes: 'Order created',
+        created_at: new Date().toISOString(),
+        updated_by: user.id // This is required and cannot be null
+      };
+
+      console.log('Creating order history with data:', historyData);
+
       const { error: historyError } = await supabase
         .from('order_history')
-        .insert({
-          order_id: orderData.id,
-          status: 'pending',
-          notes: 'Order created',
-          created_at: new Date().toISOString(),
-          updated_by: user.id, // This is required and cannot be null
-        });
+        .insert(historyData);
 
-      console.log('Order history creation:', {
+      console.log('Order history creation result:', {
         orderId: orderData.id,
         userId: user.id,
         historyError

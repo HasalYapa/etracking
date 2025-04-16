@@ -76,20 +76,33 @@ export async function GET() {
       }, { status: 500 });
     }
 
+    // Make sure testUserId is not null
+    if (!testUserId) {
+      return NextResponse.json({
+        success: false,
+        error: 'Test user ID is null',
+        details: 'Cannot create order history with null updated_by'
+      }, { status: 500 });
+    }
+
     // Step 3: Insert a test order history entry
-    const { data: historyData, error: historyError } = await supabaseAdmin
+    const historyData = {
+      order_id: orderData.id,
+      status: 'pending',
+      notes: 'Test order created',
+      created_at: timestamp,
+      updated_by: testUserId // This is required and cannot be null
+    };
+
+    console.log('Creating order history with data:', historyData);
+
+    const { data: history, error: historyError } = await supabaseAdmin
       .from('order_history')
-      .insert({
-        order_id: orderData.id,
-        status: 'pending',
-        notes: 'Test order created',
-        created_at: timestamp,
-        updated_by: testUserId // This is required and cannot be null
-      })
+      .insert(historyData)
       .select()
       .single();
 
-    console.log('Order history insert attempt:', {
+    console.log('Order history insert result:', {
       orderData,
       testUserId,
       historyError
