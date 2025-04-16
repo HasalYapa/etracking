@@ -13,34 +13,42 @@ export default function SqlFixPage() {
   const generateScript = async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
       // Create a Supabase client
       const supabaseUrl = 'https://slujerwtublzuxtzdtyw.supabase.co';
       const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsdWplcnd0dWJsenV4dHpkdHl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ2NTUzNDYsImV4cCI6MjA2MDIzMTM0Nn0.5irKk2XDrs0ItDWcnN2dOzUBT6KG3Pppg6Slh2fb4CA';
       const supabase = createClient(supabaseUrl, supabaseAnonKey);
-      
+
       // Get a valid user ID
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('id, name, role')
         .limit(10);
-      
+
       if (profilesError) {
         throw new Error(`Failed to fetch profiles: ${profilesError.message}`);
       }
-      
+
       if (!profiles || profiles.length === 0) {
         throw new Error('No profiles found in the database');
       }
-      
-      // Find a shop owner or use the first profile
-      const shopOwner = profiles.find(p => p.role === 'shop_owner') || profiles[0];
-      
-      if (!shopOwner || !shopOwner.id) {
-        throw new Error('No valid user ID found');
+
+      // Use the known shop owner ID
+      const shopOwnerId = '9939c3f3-e3fc-4af7-9ecd-31ab535bce59'; // Sampath
+      const adminId = 'e630fa7d-50dc-40c9-bbe5-5791d465c83f'; // Admin User
+
+      // Find these users in the profiles
+      const shopOwner = profiles.find(p => p.id === shopOwnerId);
+      const admin = profiles.find(p => p.id === adminId);
+
+      if (!shopOwner && !admin) {
+        throw new Error('Could not find the known user IDs in the profiles');
       }
-      
+
+      // Use the found user or fallback to the hardcoded ID
+      const userId = (shopOwner || admin)?.id || shopOwnerId;
+
       // Generate SQL script
       const script = `
 -- SQL Script to fix order history issues
@@ -66,7 +74,7 @@ WITH customer_data AS (
   )
   SELECT
     'SQL-' || floor(random() * 900000 + 100000)::text,
-    '${shopOwner.id}',
+    '${userId}',
     id,
     'pending',
     'SQL Test Delivery Address',
@@ -89,7 +97,7 @@ SELECT
   'pending',
   'Created by SQL script',
   now(),
-  '${shopOwner.id}'
+  '${userId}'
 FROM test_order;
 
 -- 2. Fix existing orders without history
@@ -115,13 +123,13 @@ SELECT
   'pending',
   'Automatically created by SQL script',
   now(),
-  '${shopOwner.id}'
+  '${userId}'
 FROM orders_without_history;
 
 -- 3. Fix order history entries with null updated_by
 
 UPDATE order_history
-SET updated_by = '${shopOwner.id}'
+SET updated_by = '${userId}'
 WHERE updated_by IS NULL;
 
 -- 4. Verify the results
@@ -143,12 +151,17 @@ SELECT 'Order history entries with null updated_by', count(*)
 FROM order_history
 WHERE updated_by IS NULL;
       `;
-      
+
       setSqlScript(script);
       setResult({
         success: true,
         message: 'SQL script generated successfully',
-        shopOwner
+        shopOwner: shopOwner || admin,
+        userId,
+        knownIds: {
+          shopOwnerId,
+          adminId
+        }
       });
     } catch (err: any) {
       setError(err.message || 'Failed to generate SQL script');
@@ -172,7 +185,7 @@ WHERE updated_by IS NULL;
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-2xl font-bold mb-6">SQL Fix for Order History Issues</h1>
-      
+
       <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-6">
         <div className="flex">
           <div className="flex-shrink-0">
@@ -187,7 +200,7 @@ WHERE updated_by IS NULL;
           </div>
         </div>
       </div>
-      
+
       <div className="mb-6">
         <button
           onClick={generateScript}
@@ -197,26 +210,35 @@ WHERE updated_by IS NULL;
           {loading ? 'Generating...' : 'Generate SQL Fix Script'}
         </button>
       </div>
-      
+
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
           <p className="font-bold">Error:</p>
           <p>{error}</p>
         </div>
       )}
-      
+
       {result && result.success && (
         <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
           <p className="font-bold">Success!</p>
           <p>{result.message}</p>
-          
+
           <div className="mt-4">
-            <h2 className="text-lg font-semibold mb-2">Shop Owner Used for Fixing:</h2>
-            <pre className="bg-gray-100 p-3 rounded text-sm overflow-auto max-h-40">
-              {JSON.stringify(result.shopOwner, null, 2)}
-            </pre>
+            <h2 className="text-lg font-semibold mb-2">User ID Used for Fixing:</h2>
+            <div className="bg-gray-100 p-3 rounded text-sm overflow-auto max-h-40">
+              <p className="font-mono">{result.userId}</p>
+              {result.shopOwner && (
+                <p className="mt-2">User: {result.shopOwner.name || 'Unknown'} (Role: {result.shopOwner.role || 'Unknown'})</p>
+              )}
+            </div>
+
+            <h3 className="text-md font-semibold mt-3 mb-1">Known User IDs:</h3>
+            <div className="bg-gray-100 p-3 rounded text-sm">
+              <p className="font-mono">Shop Owner (Sampath): {result.knownIds.shopOwnerId}</p>
+              <p className="font-mono mt-1">Admin User: {result.knownIds.adminId}</p>
+            </div>
           </div>
-          
+
           <div className="mt-6">
             <div className="flex justify-between items-center mb-2">
               <h2 className="text-lg font-semibold">SQL Script:</h2>
@@ -232,7 +254,7 @@ WHERE updated_by IS NULL;
                 {sqlScript}
               </pre>
             </div>
-            
+
             <div className="mt-4 bg-yellow-50 border-l-4 border-yellow-400 p-4">
               <h3 className="font-semibold mb-2">Instructions:</h3>
               <ol className="list-decimal list-inside space-y-2 text-sm">
