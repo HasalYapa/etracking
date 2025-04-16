@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '../../lib/auth-context';
 import { OrderWithRelations } from '../../types';
-import QRCodeScanner from '@/components/qr-code-scanner';
+import QRCodeScanner from '../../components/qr-code-scanner';
 import { useRouter } from 'next/navigation';
 
 export default function DriverDashboard() {

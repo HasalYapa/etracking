@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
-import QRCodeScanner from '@/components/qr-code-scanner';
+import { supabase } from '../../../lib/supabase';
+import QRCodeScanner from '../../../components/qr-code-scanner';
 
 export default function ScanQRCodePage() {
   const router = useRouter();

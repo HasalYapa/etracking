@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '../../../../../lib/supabase';
-import QRCodeGenerator from '../../../../../components/qr-code-generator';
+import { supabase } from '../../../../lib/supabase';
+import QRCodeGenerator from '../../../../components/qr-code-generator';
 
 export default function CreateOrderPage() {
   const router = useRouter();
