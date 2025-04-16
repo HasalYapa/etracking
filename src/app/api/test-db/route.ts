@@ -84,10 +84,16 @@ export async function GET() {
         status: 'pending',
         notes: 'Test order created',
         created_at: timestamp,
-        updated_by: testUserId
+        updated_by: testUserId // This is required and cannot be null
       })
       .select()
       .single();
+
+    console.log('Order history insert attempt:', {
+      orderData,
+      testUserId,
+      historyError
+    });
 
     if (historyError) {
       return NextResponse.json({

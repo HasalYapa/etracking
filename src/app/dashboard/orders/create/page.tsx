@@ -142,8 +142,14 @@ export default function CreateOrderPage() {
           status: 'pending',
           notes: 'Order created',
           created_at: new Date().toISOString(),
-          updated_by: user.id,
+          updated_by: user.id, // This is required and cannot be null
         });
+
+      console.log('Order history creation:', {
+        orderId: orderData.id,
+        userId: user.id,
+        historyError
+      });
 
       if (historyError) {
         console.error('Error creating order history:', historyError);
