@@ -88,7 +88,7 @@ export async function GET() {
 
     // Step 3: Create a test order
     const timestamp = new Date().toISOString();
-    const trackingNumber = `TEST-${Math.floor(100000 + Math.random() * 900000)}`;
+    const trackingNumber = `ET${Math.floor(10000000 + Math.random() * 90000000)}`;
 
     const orderData = {
       tracking_number: trackingNumber,

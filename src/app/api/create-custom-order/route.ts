@@ -37,15 +37,32 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
 
-    // Create order in database
-    const { data: order, error } = await supabase
+    // First, create a customer record
+    const { data: customer, error: customerError } = await supabase
+      .from('customers')
+      .insert({
+        name: data.customer_name,
+        phone: data.customer_phone,
+        address: data.delivery_address,
+        shop_id: data.shop_id
+      })
+      .select()
+      .single();
+
+    if (customerError) {
+      console.error('Error creating customer:', customerError);
+      return NextResponse.json({
+        success: false,
+        error: customerError.message
+      }, { status: 500 });
+    }
+
+    // Then create the order with the customer ID
+    const { data: order, error: orderError } = await supabase
       .from('orders')
       .insert({
         tracking_number: data.tracking_number,
-        customer_name: data.customer_name,
-        customer_phone: data.customer_phone,
-        // customer_address field might not exist in the schema
-        // delivery_address will be used for both customer and delivery address
+        customer_id: customer.id,
         delivery_address: data.delivery_address,
         notes: data.notes || '',
         status: 'pending',
@@ -55,17 +72,22 @@ export async function POST(request: Request) {
       .select()
       .single();
 
-    if (error) {
-      console.error('Error creating order:', error);
+    if (orderError) {
+      console.error('Error creating order:', orderError);
       return NextResponse.json({
         success: false,
-        error: error.message
+        error: orderError.message
       }, { status: 500 });
     }
 
+    // Return both customer and order data
     return NextResponse.json({
       success: true,
-      order
+      order: {
+        ...order,
+        customer_name: customer.name,
+        customer_phone: customer.phone
+      }
     });
 
   } catch (error: any) {

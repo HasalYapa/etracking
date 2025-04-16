@@ -43,10 +43,13 @@ export async function GET(request: Request) {
       }, { status: 500 });
     }
 
-    // Format the orders to include customer name
+    // Format the orders to include customer information
     const formattedOrders = orders.map(order => ({
       ...order,
-      customer_name: order.customers?.name || 'Unknown'
+      customer_name: order.customers?.name || 'Unknown',
+      customer_phone: order.customers?.phone || '',
+      customer_email: order.customers?.email || '',
+      customer_address: order.customers?.address || ''
     }));
 
     return NextResponse.json({
