@@ -1,7 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { QRCodeSVG } from 'qrcode.react';
+import Link from 'next/link';
+import { supabase } from '@/lib/supabase-client';
 
 export default function TrackingPage() {
   const [trackingNumber, setTrackingNumber] = useState('');
@@ -11,18 +13,21 @@ export default function TrackingPage() {
 
   const handleTrack = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('Track button clicked');
 
     if (!trackingNumber.trim()) {
       setError('Please enter a tracking number');
       return;
     }
 
+    console.log('Tracking number:', trackingNumber);
     setLoading(true);
     setError(null);
     setOrderData(null);
 
     try {
       // Fetch order data
+      console.log('Fetching order data from Supabase...');
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
         .select(`
@@ -33,6 +38,8 @@ export default function TrackingPage() {
         .eq('tracking_number', trackingNumber)
         .single();
 
+      console.log('Order data response:', { orderData, orderError });
+
       if (orderError) {
         throw new Error('Order not found. Please check your tracking number and try again.');
       }
@@ -42,20 +49,26 @@ export default function TrackingPage() {
       }
 
       // Fetch order history
+      console.log('Fetching order history...');
       const { data: historyData, error: historyError } = await supabase
         .from('order_history')
         .select('*')
         .eq('order_id', orderData.id)
         .order('created_at', { ascending: true });
 
+      console.log('History data response:', { historyData, historyError });
+
       if (historyError) {
         console.error('Error fetching order history:', historyError);
       }
 
-      setOrderData({
+      const completeOrderData = {
         ...orderData,
         history: historyData || []
-      });
+      };
+
+      console.log('Setting order data:', completeOrderData);
+      setOrderData(completeOrderData);
     } catch (err: any) {
       console.error('Error tracking order:', err);
       setError(err.message);
@@ -85,19 +98,22 @@ export default function TrackingPage() {
             <div className="p-8">
               <div className="mb-8">
                 <h2 className="text-2xl font-bold mb-4 text-gray-800">Enter Tracking Number</h2>
-                <form onSubmit={handleTrack} className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                <p className="text-sm text-gray-500 mb-2">Try with sample tracking number: <span className="font-mono bg-gray-100 px-2 py-1 rounded">ET-123456</span></p>
+                <form onSubmit={handleTrack} className="flex flex-col sm:flex-row gap-3 sm:gap-4" suppressHydrationWarning key="tracking-form">
                   <input
                     type="text"
                     className="flex-grow px-4 py-3 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="e.g., ORD-123456"
+                    placeholder="e.g., ET-123456"
                     value={trackingNumber}
                     onChange={(e) => setTrackingNumber(e.target.value)}
                     required
+                    suppressHydrationWarning
                   />
                   <button
                     type="submit"
                     disabled={loading}
                     className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-md transition-colors disabled:opacity-50"
+                    suppressHydrationWarning
                   >
                     {loading ? 'Tracking...' : 'Track'}
                   </button>
@@ -129,17 +145,49 @@ export default function TrackingPage() {
                         'Delivered'}
                       </span>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                      <div>
-                        <p className="text-gray-600"><span className="font-medium">Customer:</span> {orderData.customer_name}</p>
-                        <p className="text-gray-600"><span className="font-medium">Shop:</span> {orderData.shops?.business_name || 'N/A'}</p>
-                        {orderData.drivers && (
-                          <p className="text-gray-600"><span className="font-medium">Driver:</span> {orderData.drivers?.name || 'Not assigned yet'}</p>
-                        )}
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                      <div className="md:col-span-2">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <p className="text-gray-600"><span className="font-medium">Customer:</span> {orderData.customer_name}</p>
+                            <p className="text-gray-600"><span className="font-medium">Shop:</span> {orderData.shops?.business_name || 'N/A'}</p>
+                            {orderData.drivers && (
+                              <p className="text-gray-600"><span className="font-medium">Driver:</span> {orderData.drivers?.name || 'Not assigned yet'}</p>
+                            )}
+                          </div>
+                          <div>
+                            <p className="text-gray-600"><span className="font-medium">Delivery Address:</span> {orderData.delivery_address}</p>
+                            <p className="text-gray-600"><span className="font-medium">Last Updated:</span> {formatDate(orderData.last_updated)}</p>
+                          </div>
+                        </div>
+
+                        <div className="mt-4">
+                          <Link
+                            href={`/track/${orderData.tracking_number}`}
+                            className="text-blue-600 hover:text-blue-800 font-medium flex items-center"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                            View Detailed Tracking Page
+                          </Link>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-gray-600"><span className="font-medium">Delivery Address:</span> {orderData.delivery_address}</p>
-                        <p className="text-gray-600"><span className="font-medium">Last Updated:</span> {formatDate(orderData.last_updated)}</p>
+
+                      <div className="flex flex-col items-center justify-center bg-white p-4 rounded-lg shadow-sm">
+                        <div className="mb-2">
+                          <QRCodeSVG
+                            value={`/track/${orderData.tracking_number}`}
+                            size={120}
+                            level="H"
+                            includeMargin={true}
+                            bgColor={"#FFFFFF"}
+                            fgColor={"#000000"}
+                          />
+                        </div>
+                        <p className="text-sm text-gray-600 text-center">Scan to track this order</p>
                       </div>
                     </div>
                   </div>
@@ -223,7 +271,7 @@ export default function TrackingPage() {
                   <h3 className="text-lg font-semibold mb-2 text-gray-800">How do I track my order?</h3>
                   <p className="text-gray-600">
                     Enter your tracking number in the field above and click "Track". Your tracking number was provided
-                    in your order confirmation email or SMS.
+                    in your order confirmation email or SMS. You can also scan the QR code provided with your order.
                   </p>
                 </div>
 

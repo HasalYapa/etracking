@@ -2,6 +2,7 @@
 
 import React from 'react';
 import QRCodeGenerator from './qr-code-generator';
+import { QRCodeSVG } from 'qrcode.react';
 
 interface OrderDetailsModalProps {
   order: any;
@@ -94,27 +95,61 @@ export default function OrderDetailsModal({ order, onClose }: OrderDetailsModalP
             </div>
           </div>
 
-          {/* QR Code Section */}
+          {/* QR Code Sections */}
           <div className="border-t pt-6">
-            <h4 className="text-lg font-semibold mb-4 border-b pb-2">QR Code Tracking</h4>
-            <div className="flex flex-col md:flex-row gap-6">
-              <div className="flex-shrink-0">
-                <QRCodeGenerator
-                  trackingNumber={order.id}
-                  location={order.dispatch_location || 'Shop Location'}
-                  includeDriverInfo={!!order.driver}
-                  driverPhone={order.driver?.phone}
-                />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              {/* Driver QR Code */}
+              <div>
+                <h4 className="text-lg font-semibold mb-4 border-b pb-2">Driver QR Code</h4>
+                <div className="flex flex-col gap-4">
+                  <div className="flex-shrink-0">
+                    <QRCodeGenerator
+                      trackingNumber={order.id}
+                      location={order.dispatch_location || 'Shop Location'}
+                      includeDriverInfo={!!order.driver}
+                      driverPhone={order.driver?.phone}
+                    />
+                  </div>
+                  <div className="flex-grow">
+                    <div className="bg-blue-50 p-4 rounded-lg">
+                      <h5 className="font-medium text-blue-800 mb-2">For Drivers:</h5>
+                      <ol className="list-decimal list-inside space-y-2 text-gray-700 text-sm">
+                        <li>Share this QR code with your delivery driver</li>
+                        <li>The driver scans this code at pickup and delivery</li>
+                        <li>Scanning updates the order status automatically</li>
+                      </ol>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div className="flex-grow">
-                <div className="bg-blue-50 p-4 rounded-lg mb-4">
-                  <h5 className="font-medium text-blue-800 mb-2">How to use this QR code:</h5>
-                  <ol className="list-decimal list-inside space-y-2 text-gray-700">
-                    <li>Print or share this QR code with your delivery driver</li>
-                    <li>The driver can scan this code at pickup and delivery locations</li>
-                    <li>Scanning updates the order status and location automatically</li>
-                    <li>Customers can track their order in real-time</li>
-                  </ol>
+
+              {/* Customer Tracking QR Code */}
+              <div>
+                <h4 className="text-lg font-semibold mb-4 border-b pb-2">Customer Tracking QR Code</h4>
+                <div className="flex flex-col gap-4">
+                  <div className="flex-shrink-0 flex justify-center">
+                    <div className="border-2 border-gray-200 rounded-lg p-2 mb-2">
+                      <QRCodeSVG
+                        value={`/track/${order.tracking_number}`}
+                        size={150}
+                        level="H"
+                        includeMargin={true}
+                        bgColor={"#FFFFFF"}
+                        fgColor={"#000000"}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex-grow">
+                    <div className="bg-green-50 p-4 rounded-lg">
+                      <h5 className="font-medium text-green-800 mb-2">For Customers:</h5>
+                      <ol className="list-decimal list-inside space-y-2 text-gray-700 text-sm">
+                        <li>Share this QR code with your customer</li>
+                        <li>Customers can scan to track their order</li>
+                        <li>Provides real-time delivery status updates</li>
+                        <li>No login required for tracking</li>
+                      </ol>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

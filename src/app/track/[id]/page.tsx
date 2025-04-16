@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { OrderWithRelations, OrderHistory } from '../../../types';
+import { QRCodeSVG } from 'qrcode.react';
 
 export default function TrackOrder({ params }: { params: { id: string } }) {
   const { id } = params;
@@ -126,24 +127,40 @@ export default function TrackOrder({ params }: { params: { id: string } }) {
 
           <div className="mb-8">
             <h2 className="text-lg font-bold mb-4">Delivery Details</h2>
-            <div className="space-y-3">
-              <div className="flex">
-                <span className="font-medium w-32">Delivery To:</span>
-                <span>{order.delivery_address}</span>
-              </div>
-              <div className="flex">
-                <span className="font-medium w-32">Shop:</span>
-                <span>{order.shops?.business_name || order.shops?.name}</span>
-              </div>
-              {order.drivers && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="md:col-span-2 space-y-3">
                 <div className="flex">
-                  <span className="font-medium w-32">Driver:</span>
-                  <span>{order.drivers.name}</span>
+                  <span className="font-medium w-32">Delivery To:</span>
+                  <span>{order.delivery_address}</span>
                 </div>
-              )}
-              <div className="flex">
-                <span className="font-medium w-32">Order Date:</span>
-                <span>{formatDate(order.created_at)}</span>
+                <div className="flex">
+                  <span className="font-medium w-32">Shop:</span>
+                  <span>{order.shops?.business_name || order.shops?.name}</span>
+                </div>
+                {order.drivers && (
+                  <div className="flex">
+                    <span className="font-medium w-32">Driver:</span>
+                    <span>{order.drivers.name}</span>
+                  </div>
+                )}
+                <div className="flex">
+                  <span className="font-medium w-32">Order Date:</span>
+                  <span>{formatDate(order.created_at)}</span>
+                </div>
+              </div>
+
+              <div className="flex flex-col items-center justify-center bg-gray-50 p-4 rounded-lg">
+                <div className="mb-2">
+                  <QRCodeSVG
+                    value={`/track/${order.tracking_number}`}
+                    size={120}
+                    level="H"
+                    includeMargin={true}
+                    bgColor={"#FFFFFF"}
+                    fgColor={"#000000"}
+                  />
+                </div>
+                <p className="text-sm text-gray-600 text-center">Share this QR code to track this order</p>
               </div>
             </div>
           </div>

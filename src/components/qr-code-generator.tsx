@@ -21,9 +21,14 @@ export default function QRCodeGenerator({
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
 
   // Create QR code data
-  const qrData = includeDriverInfo
-    ? `${trackingNumber}|${location}|${driverPhone}`
-    : `${trackingNumber}|${location}`;
+  // Format: JSON or trackingNumber|location|driverPhone
+  // This format must match what the scanner expects
+  const qrData = JSON.stringify({
+    trackingNumber,
+    location,
+    driverPhone: includeDriverInfo ? driverPhone : undefined,
+    timestamp: new Date().toISOString()
+  });
 
   // Function to download QR code as image
   const downloadQRCode = () => {
@@ -145,6 +150,8 @@ export default function QRCodeGenerator({
           size={size}
           level="H"
           includeMargin={true}
+          bgColor={"#FFFFFF"}
+          fgColor={"#000000"}
         />
       </div>
 

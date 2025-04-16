@@ -19,7 +19,7 @@ export default function ScanQRCodePage() {
     const checkAuth = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
-        
+
         if (!user) {
           router.push('/driver-login');
           return;
@@ -73,6 +73,7 @@ export default function ScanQRCodePage() {
   // Handle QR code scan
   const handleScan = async (data: { trackingNumber: string; location: string; driverPhone?: string }) => {
     try {
+      console.log('QR code scanned with data:', data);
       setScanResult(data);
       setError(null);
       setSuccess(null);
@@ -89,6 +90,9 @@ export default function ScanQRCodePage() {
         latitude = currentLocation.lat;
         longitude = currentLocation.lng;
       }
+
+      // Show processing message
+      setSuccess('Processing scan... Please wait.');
 
       // Update dispatch location
       const response = await fetch('/api/update-dispatch-location', {
@@ -107,11 +111,13 @@ export default function ScanQRCodePage() {
       });
 
       const result = await response.json();
+      console.log('API response:', result);
 
       if (!response.ok) {
         throw new Error(result.error || 'Failed to update dispatch location');
       }
 
+      // Update success message
       setSuccess(`Successfully updated order status for tracking number: ${data.trackingNumber}`);
 
       // Redirect to order details after a delay
@@ -159,26 +165,15 @@ export default function ScanQRCodePage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
-          <QRCodeScanner 
-            onScan={handleScan} 
-            onError={handleScanError} 
+          <QRCodeScanner
+            onScan={handleScan}
+            onError={handleScanError}
           />
-        </div>
 
-        <div>
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-lg font-semibold mb-4">Scan Instructions</h2>
-            
-            <ol className="list-decimal list-inside space-y-3 text-gray-700 mb-6">
-              <li>Position the QR code within the scanner frame</li>
-              <li>Hold steady until the code is recognized</li>
-              <li>Once scanned, the order status will be updated automatically</li>
-              <li>You'll be redirected to the order details page</li>
-            </ol>
-
-            {scanResult && (
-              <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-                <h3 className="font-medium text-blue-800 mb-2">Scan Result:</h3>
+          {scanResult && (
+            <div className="mt-6 p-4 bg-blue-50 rounded-lg shadow-md">
+              <h3 className="font-medium text-blue-800 mb-2">Scan Result:</h3>
+              <div className="space-y-2">
                 <p><strong>Order ID:</strong> {scanResult.trackingNumber}</p>
                 <p><strong>Dispatch Location:</strong> {scanResult.location}</p>
                 {scanResult.driverPhone && (
@@ -188,17 +183,41 @@ export default function ScanQRCodePage() {
                   <p><strong>Your Current Location:</strong> {currentLocation.lat.toFixed(6)}, {currentLocation.lng.toFixed(6)}</p>
                 )}
               </div>
-            )}
+            </div>
+          )}
+        </div>
+
+        <div>
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h2 className="text-lg font-semibold mb-4">Scan Instructions</h2>
+
+            <ol className="list-decimal list-inside space-y-3 text-gray-700 mb-6">
+              <li>Position the QR code within the scanner frame</li>
+              <li>Hold steady until the code is recognized</li>
+              <li>Once scanned, the order status will be updated automatically</li>
+              <li>You'll be redirected to the order details page</li>
+            </ol>
           </div>
 
           <div className="mt-6 bg-white rounded-lg shadow-md p-6">
             <h2 className="text-lg font-semibold mb-4">Why Use QR Codes?</h2>
-            
+
             <ul className="list-disc list-inside space-y-2 text-gray-700">
               <li>Faster and more accurate than manual entry</li>
               <li>Automatically updates order status and location</li>
               <li>Provides real-time tracking for customers</li>
               <li>Reduces errors in the delivery process</li>
+            </ul>
+          </div>
+
+          <div className="mt-6 bg-white rounded-lg shadow-md p-6">
+            <h2 className="text-lg font-semibold mb-4">Troubleshooting</h2>
+
+            <ul className="list-disc list-inside space-y-2 text-gray-700">
+              <li>Make sure the QR code is well-lit and clearly visible</li>
+              <li>If scanning fails, try a different camera or angle</li>
+              <li>Ensure you have a stable internet connection</li>
+              <li>If problems persist, contact support</li>
             </ul>
           </div>
         </div>

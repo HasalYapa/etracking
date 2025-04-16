@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
+import ReactQRScanner from '@/components/react-qr-scanner';
 
 // Create a Supabase client
 const supabaseUrl = 'https://slujerwtublzuxtzdtyw.supabase.co';
@@ -23,12 +24,34 @@ export default function DriverDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [assignments, setAssignments] = useState<any[]>([]);
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [scanResult, setScanResult] = useState<any>(null);
+  const [scanSuccess, setScanSuccess] = useState<string | null>(null);
+  const [scanError, setScanError] = useState<string | null>(null);
+  const [currentLocation, setCurrentLocation] = useState<{lat: number, lng: number} | null>(null);
   const [stats, setStats] = useState({
     total: 0,
     pending: 0,
     in_transit: 0,
     delivered: 0
   });
+
+  // Get current location
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setCurrentLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          });
+        },
+        (err) => {
+          console.error('Error getting location:', err);
+        }
+      );
+    }
+  }, []);
 
   useEffect(() => {
     async function getSession() {
@@ -148,6 +171,76 @@ export default function DriverDashboard() {
     } catch (err) {
       console.error('Error loading driver assignments:', err);
     }
+  };
+
+  // Handle QR code scan
+  const handleScan = async (data: { trackingNumber: string; location: string; driverPhone?: string }) => {
+    try {
+      console.log('QR code scanned with data:', data);
+      setScanResult(data);
+      setScanError(null);
+      setScanSuccess(null);
+
+      if (!profile) {
+        setScanError('You must be logged in to update order status.');
+        return;
+      }
+
+      // Get current location if available
+      let latitude = null;
+      let longitude = null;
+      if (currentLocation) {
+        latitude = currentLocation.lat;
+        longitude = currentLocation.lng;
+      }
+
+      // Show processing message
+      setScanSuccess('Processing scan... Please wait.');
+
+      // Update dispatch location
+      const response = await fetch('/api/update-dispatch-location', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          order_id: data.trackingNumber,
+          dispatch_location: data.location,
+          driver_id: profile.id,
+          timestamp: new Date().toISOString(),
+          latitude,
+          longitude,
+        }),
+      });
+
+      const result = await response.json();
+      console.log('API response:', result);
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to update dispatch location');
+      }
+
+      // Update success message
+      setScanSuccess(`Successfully updated order status for tracking number: ${data.trackingNumber}`);
+
+      // Refresh the assignments list
+      await loadDriverAssignments(profile.id);
+
+      // Close the scanner after a delay
+      setTimeout(() => {
+        setScannerOpen(false);
+        setScanSuccess(null);
+      }, 3000);
+    } catch (err: any) {
+      console.error('Error updating dispatch location:', err);
+      setScanError(err.message || 'An error occurred while updating the order status');
+    }
+  };
+
+  // Handle scan error
+  const handleScanError = (errorMessage: string) => {
+    setScanError(errorMessage);
+    setScanResult(null);
   };
 
   const handleSignOut = async () => {
@@ -316,6 +409,70 @@ export default function DriverDashboard() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* QR Code Scanner Section */}
+        <div className="mb-8">
+          <button
+            onClick={() => setScannerOpen(!scannerOpen)}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-lg flex items-center justify-center gap-2 mb-4"
+          >
+            {scannerOpen ? 'Hide QR Scanner' : 'Scan QR Code'}
+          </button>
+
+          {scannerOpen && (
+            <div className="bg-white rounded-lg shadow-sm p-6 mb-4">
+              <h2 className="text-xl font-bold mb-4">Scan Order QR Code</h2>
+
+              {scanError && (
+                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                  {scanError}
+                </div>
+              )}
+
+              {scanSuccess && (
+                <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+                  {scanSuccess}
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  {/* Only render the scanner component when the scanner is open */}
+                  {scannerOpen && (
+                    <ReactQRScanner
+                      onScan={handleScan}
+                      onError={handleScanError}
+                    />
+                  )}
+                </div>
+
+                <div>
+                  <div className="bg-blue-50 rounded-lg p-4">
+                    <h3 className="font-medium text-blue-800 mb-2">Scan Instructions:</h3>
+                    <ol className="list-decimal list-inside space-y-2 text-gray-700">
+                      <li>Position the QR code within the scanner frame</li>
+                      <li>Hold steady until the code is recognized</li>
+                      <li>Once scanned, the order status will update automatically</li>
+                    </ol>
+                  </div>
+
+                  {scanResult && (
+                    <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                      <h3 className="font-medium text-gray-800 mb-2">Scan Result:</h3>
+                      <div className="space-y-1 text-sm">
+                        <p><strong>Order ID:</strong> {scanResult.trackingNumber}</p>
+                        <p><strong>Dispatch Location:</strong> {scanResult.location}</p>
+                        {scanResult.driverPhone && (
+                          <p><strong>Driver Contact:</strong> {scanResult.driverPhone}</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="mb-8">
