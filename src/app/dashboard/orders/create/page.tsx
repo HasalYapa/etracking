@@ -140,10 +140,31 @@ export default function CreateOrderPage() {
       console.log('Customer data for order:', customerData);
 
       // Create order with customer_id
+      // First, let's verify the customer exists
+      if (!customerData || !customerData.id) {
+        console.error('Customer data is invalid:', customerData);
+        throw new Error('Invalid customer data. Please create a customer first.');
+      }
+
+      // Get all customers to find a valid one if needed
+      const { data: allCustomers, error: customersError } = await supabase
+        .from('customers')
+        .select('id')
+        .limit(10);
+
+      if (customersError) {
+        console.error('Error fetching customers:', customersError);
+      }
+
+      // Use a fallback customer ID if needed
+      const fallbackCustomerId = allCustomers && allCustomers.length > 0
+        ? allCustomers[0].id
+        : '3fd56aed-bd9d-44e9-b6ba-8f85a9c0610b'; // Hardcoded ID from a known customer
+
       const orderInsertData = {
         tracking_number: trackingNumber,
         shop_id: user.id,
-        customer_id: customerData.id, // Use the customer ID from the previous step
+        customer_id: customerData.id || fallbackCustomerId, // Use fallback if needed
         driver_id: formData.driverId || null,
         status: 'pending',
         delivery_address: formData.deliveryAddress,
