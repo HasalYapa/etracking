@@ -14,27 +14,27 @@ export async function GET() {
     const { data: profiles, error: profilesError } = await supabaseAdmin
       .from('profiles')
       .select('*');
-    
+
     if (profilesError) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Failed to fetch profiles', 
-        details: profilesError 
+      return NextResponse.json({
+        success: false,
+        error: 'Failed to fetch profiles',
+        details: profilesError
       }, { status: 500 });
     }
-    
+
     // Find a shop owner and a driver
     const shopOwner = profiles.find(p => p.role === 'shop_owner');
     const driver = profiles.find(p => p.role === 'driver');
-    
+
     if (!shopOwner) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'No shop owner found in profiles', 
-        profiles 
+      return NextResponse.json({
+        success: false,
+        error: 'No shop owner found in profiles',
+        profiles
       }, { status: 500 });
     }
-    
+
     const timestamp = new Date().toISOString();
     const results: any = {
       profiles: { shopOwner, driver },
@@ -42,7 +42,7 @@ export async function GET() {
       orders: [],
       orderHistory: []
     };
-    
+
     // Create 3 test customers
     for (let i = 1; i <= 3; i++) {
       const { data: customer, error: customerError } = await supabaseAdmin
@@ -58,20 +58,20 @@ export async function GET() {
         })
         .select()
         .single();
-      
+
       if (customerError) {
-        return NextResponse.json({ 
-          success: false, 
-          error: `Failed to create customer ${i}`, 
-          details: customerError 
+        return NextResponse.json({
+          success: false,
+          error: `Failed to create customer ${i}`,
+          details: customerError
         }, { status: 500 });
       }
-      
+
       results.customers.push(customer);
-      
+
       // Create an order for each customer
       const trackingNumber = `TEST-${Math.floor(100000 + Math.random() * 900000)}`;
-      
+
       const { data: order, error: orderError } = await supabaseAdmin
         .from('orders')
         .insert({
@@ -87,18 +87,29 @@ export async function GET() {
         })
         .select()
         .single();
-      
+
       if (orderError) {
-        return NextResponse.json({ 
-          success: false, 
-          error: `Failed to create order ${i}`, 
-          details: orderError 
+        return NextResponse.json({
+          success: false,
+          error: `Failed to create order ${i}`,
+          details: orderError
         }, { status: 500 });
       }
-      
+
       results.orders.push(order);
-      
+
       // Create order history entry
+      // Make sure shopOwner.id is not null
+      if (!shopOwner.id) {
+        return NextResponse.json({
+          success: false,
+          error: `Shop owner ID is null`,
+          shopOwner
+        }, { status: 500 });
+      }
+
+      console.log(`Creating order history for order ${i} with updated_by:`, shopOwner.id);
+
       const { data: history, error: historyError } = await supabaseAdmin
         .from('order_history')
         .insert({
@@ -110,29 +121,29 @@ export async function GET() {
         })
         .select()
         .single();
-      
+
       if (historyError) {
-        return NextResponse.json({ 
-          success: false, 
-          error: `Failed to create order history ${i}`, 
-          details: historyError 
+        return NextResponse.json({
+          success: false,
+          error: `Failed to create order history ${i}`,
+          details: historyError
         }, { status: 500 });
       }
-      
+
       results.orderHistory.push(history);
     }
-    
-    return NextResponse.json({ 
-      success: true, 
+
+    return NextResponse.json({
+      success: true,
       message: 'Database initialized with test data',
       results
     });
-    
+
   } catch (error: any) {
-    return NextResponse.json({ 
-      success: false, 
-      error: 'Unexpected error', 
-      details: error.message 
+    return NextResponse.json({
+      success: false,
+      error: 'Unexpected error',
+      details: error.message
     }, { status: 500 });
   }
 }
