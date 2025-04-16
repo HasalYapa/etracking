@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
-import ReactQRScanner from '@/components/react-qr-scanner';
+import Html5QRScanner from '@/components/html5-qr-scanner';
 
 // Create a Supabase client
 const supabaseUrl = 'https://slujerwtublzuxtzdtyw.supabase.co';
@@ -440,7 +440,7 @@ export default function DriverDashboard() {
                 <div>
                   {/* Only render the scanner component when the scanner is open */}
                   {scannerOpen && (
-                    <ReactQRScanner
+                    <Html5QRScanner
                       onScan={handleScan}
                       onError={handleScanError}
                     />
