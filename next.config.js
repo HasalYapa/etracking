@@ -12,6 +12,9 @@ const nextConfig = {
     // your project has ESLint errors.
     ignoreDuringBuilds: true,
   },
+  webpack: (config) => {
+    return config;
+  },
 }
 
 module.exports = nextConfig
