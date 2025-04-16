@@ -50,8 +50,8 @@ export default function ShopLogin() {
       // Force a delay to ensure session is properly established
       await new Promise(resolve => setTimeout(resolve, 1000));
 
-      // Redirect to shop dashboard
-      window.location.href = '/shop-dashboard';
+      // Redirect to minimal shop dashboard
+      window.location.href = '/minimal-shop';
     } catch (err: any) {
       console.error('Unexpected error:', err);
       setError(err.message || 'An unexpected error occurred');
