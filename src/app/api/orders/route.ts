@@ -32,13 +32,13 @@ export async function POST(request: NextRequest) {
 
     // Get the request body
     const body = await request.json();
-    const { 
-      customerName, 
-      customerPhone, 
-      customerEmail, 
-      deliveryAddress, 
+    const {
+      customerName,
+      customerPhone,
+      customerEmail,
+      deliveryAddress,
       deliveryNotes,
-      driverId 
+      driverId
     } = body;
 
     // Validate required fields
@@ -85,15 +85,38 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: orderError.message }, { status: 500 });
     }
 
-    // Create an order history record
-    await supabase
+    // Create an order history record with explicit created_at and updated_by fields
+    const timestamp = new Date().toISOString();
+    const { error: historyError } = await supabase
       .from('order_history')
       .insert({
         order_id: order.id,
         status: driverId ? 'assigned' : 'pending',
         notes: 'Order created',
+        created_at: timestamp,
         updated_by: session.user.id
       });
+
+    if (historyError) {
+      console.error('Error creating order history:', historyError);
+
+      // If the first attempt fails, try with a hardcoded shop owner ID
+      const shopOwnerId = '9939c3f3-e3fc-4af7-9ecd-31ab535bce59'; // Sampath
+
+      const { error: fallbackError } = await supabase
+        .from('order_history')
+        .insert({
+          order_id: order.id,
+          status: driverId ? 'assigned' : 'pending',
+          notes: 'Order created (fallback)',
+          created_at: timestamp,
+          updated_by: shopOwnerId
+        });
+
+      if (fallbackError) {
+        return NextResponse.json({ error: 'Failed to create order history: ' + fallbackError.message }, { status: 500 });
+      }
+    }
 
     // If driver is assigned, send an SMS notification (mock for now)
     if (driverId) {

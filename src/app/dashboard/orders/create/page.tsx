@@ -175,126 +175,35 @@ export default function CreateOrderPage() {
 
       console.log('Creating order with data:', orderInsertData);
 
-      const { data: orderData, error: orderError } = await supabase
-        .from('orders')
-        .insert(orderInsertData)
-        .select()
-        .single();
+      // Instead of using direct Supabase client, use the API endpoint
+      // This ensures proper handling of the order creation process including order history
+      const response = await fetch('/api/orders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          customerName: formData.customerName,
+          customerPhone: formData.customerPhone,
+          customerEmail: formData.customerEmail,
+          deliveryAddress: formData.deliveryAddress,
+          deliveryNotes: formData.deliveryNotes,
+          driverId: formData.driverId
+        }),
+      });
 
-      console.log('Order creation result:', { orderData, orderError });
+      const responseData = await response.json();
 
-      if (orderError) {
-        throw orderError;
+      if (responseData.error) {
+        console.error('API error creating order:', responseData.error);
+        throw new Error(responseData.error);
       }
 
-      // Customer already created above
+      const orderData = responseData.data;
+      console.log('Order creation result from API:', orderData);
 
-      // Make sure we have a valid user ID for the order history
-      // Get all profiles to find a valid user ID
-      const { data: allProfiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, name, role')
-        .limit(10);
-
-      if (profilesError) {
-        console.error('Error fetching profiles:', profilesError);
-        throw new Error('Failed to fetch profiles for order history');
-      }
-
-      if (!allProfiles || allProfiles.length === 0) {
-        console.error('No profiles found in the database');
-        throw new Error('No profiles found for order history');
-      }
-
-      // Find a shop owner or use the first profile
-      const shopOwner = allProfiles.find(p => p.role === 'shop_owner') || allProfiles[0];
-      const updatedById = (user && user.id) ? user.id : shopOwner.id;
-
-      console.log('Using updated_by ID:', updatedById, 'from user:', shopOwner);
-
-      // Create order history entry with explicit updated_by field
-      const historyData = {
-        order_id: orderData.id,
-        status: 'pending',
-        notes: 'Order created',
-        created_at: new Date().toISOString(),
-        updated_by: updatedById // This MUST NOT be null
-      };
-
-      console.log('Creating order history with data:', historyData);
-
-      // Try multiple approaches to create order history
-      let historySuccess = false;
-
-      // Attempt 1: Use the API endpoint
-      try {
-        const historyResponse = await fetch('/api/create-order-history', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(historyData),
-        });
-
-        const historyResult = await historyResponse.json();
-
-        if (!historyResult.success) {
-          console.error('Error creating order history via API:', historyResult);
-          throw new Error(historyResult.error || 'Failed to create order history');
-        }
-
-        console.log('Order history created successfully via API:', historyResult);
-        historySuccess = true;
-      } catch (apiError: any) {
-        console.error('API approach failed:', apiError);
-
-        // Attempt 2: Direct insert
-        try {
-          const { error: directError } = await supabase
-            .from('order_history')
-            .insert({
-              order_id: orderData.id,
-              status: 'pending',
-              notes: 'Order created (direct insert)',
-              created_at: new Date().toISOString(),
-              updated_by: updatedById
-            });
-
-          if (directError) {
-            console.error('Direct insert failed:', directError);
-            throw directError;
-          }
-
-          console.log('Order history created successfully via direct insert');
-          historySuccess = true;
-        } catch (directError: any) {
-          console.error('Direct insert failed:', directError);
-
-          // Attempt 3: Minimal insert
-          try {
-            const { error: minimalError } = await supabase
-              .from('order_history')
-              .insert({
-                order_id: orderData.id,
-                status: 'pending',
-                updated_by: updatedById
-              });
-
-            if (minimalError) {
-              console.error('Minimal insert failed:', minimalError);
-              throw minimalError;
-            }
-
-            console.log('Order history created successfully via minimal insert');
-            historySuccess = true;
-          } catch (minimalError: any) {
-            console.error('All attempts failed:', apiError, directError, minimalError);
-            throw new Error(`Failed to create order history after multiple attempts`);
-          }
-        }
-      }
-
-      // Order history is now created via API call above
+      // The API endpoint has already created the customer, order, and order history
+      // No need to manually create order history as it's handled by the API
 
       setSuccess(true);
       setOrderCreated(true);

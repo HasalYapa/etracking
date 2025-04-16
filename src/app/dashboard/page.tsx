@@ -31,45 +31,48 @@ export default function Dashboard() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
 
-  // Fetch orders
-  useEffect(() => {
-    async function fetchOrders() {
-      try {
-        setIsLoading(true);
-        const response = await fetch('/api/orders');
-        const data = await response.json();
+  // Define fetchOrders function outside useEffect so it can be reused
+  const fetchOrders = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch('/api/orders');
+      const data = await response.json();
 
-        if (data.error) {
-          throw new Error(data.error);
-        }
-
-        setOrders(data.data || []);
-
-        // Calculate stats
-        const total = data.data.length;
-        const pending = data.data.filter((order: Order) =>
-          order.status === 'pending' || order.status === 'assigned'
-        ).length;
-        const inTransit = data.data.filter((order: Order) =>
-          order.status === 'picked_up' || order.status === 'in_transit'
-        ).length;
-        const delivered = data.data.filter((order: Order) =>
-          order.status === 'delivered'
-        ).length;
-
-        setStats({
-          total,
-          pending,
-          in_transit: inTransit,
-          delivered
-        });
-      } catch (err: any) {
-        setError(err.message);
-      } finally {
-        setIsLoading(false);
+      if (data.error) {
+        throw new Error(data.error);
       }
-    }
 
+      console.log('Fetched orders:', data.data);
+      setOrders(data.data || []);
+
+      // Calculate stats
+      const total = data.data.length;
+      const pending = data.data.filter((order: Order) =>
+        order.status === 'pending' || order.status === 'assigned'
+      ).length;
+      const inTransit = data.data.filter((order: Order) =>
+        order.status === 'picked_up' || order.status === 'in_transit'
+      ).length;
+      const delivered = data.data.filter((order: Order) =>
+        order.status === 'delivered'
+      ).length;
+
+      setStats({
+        total,
+        pending,
+        in_transit: inTransit,
+        delivered
+      });
+    } catch (err: any) {
+      console.error('Error fetching orders:', err);
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Fetch orders when component mounts
+  useEffect(() => {
     if (!authLoading) {
       fetchOrders();
     }
@@ -131,15 +134,10 @@ export default function Dashboard() {
         throw new Error(data.error);
       }
 
-      // Add the new order to the list
-      setOrders(prev => [data.data, ...prev]);
+      // Refresh the orders list to ensure we have the latest data
+      await fetchOrders();
 
-      // Update stats
-      setStats(prev => ({
-        ...prev,
-        total: prev.total + 1,
-        pending: prev.pending + 1
-      }));
+      console.log('Order created successfully:', data.data);
 
       // Reset form and close modal
       setFormData({
