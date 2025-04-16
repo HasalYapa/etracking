@@ -15,58 +15,58 @@ export async function GET() {
       .from('profiles')
       .select('id, name, role')
       .limit(10);
-    
+
     if (profilesError) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Failed to fetch profiles', 
-        details: profilesError 
+      return NextResponse.json({
+        success: false,
+        error: 'Failed to fetch profiles',
+        details: profilesError
       }, { status: 500 });
     }
-    
+
     if (!profiles || profiles.length === 0) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'No profiles found in the database' 
+      return NextResponse.json({
+        success: false,
+        error: 'No profiles found in the database'
       }, { status: 500 });
     }
-    
+
     // Find a shop owner or use the first profile
     const shopOwner = profiles.find(p => p.role === 'shop_owner') || profiles[0];
-    
+
     if (!shopOwner || !shopOwner.id) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'No valid user ID found for fixing', 
-        profiles 
+      return NextResponse.json({
+        success: false,
+        error: 'No valid user ID found for fixing',
+        profiles
       }, { status: 500 });
     }
-    
+
     // Step 2: Get all orders
     const { data: orders, error: ordersError } = await supabaseAdmin
       .from('orders')
       .select('id, tracking_number')
       .order('created_at', { ascending: false })
       .limit(50);
-    
+
     if (ordersError) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Failed to fetch orders', 
-        details: ordersError 
+      return NextResponse.json({
+        success: false,
+        error: 'Failed to fetch orders',
+        details: ordersError
       }, { status: 500 });
     }
-    
+
     // Step 3: For each order, check if it has order history entries
     const results = [];
-    
+
     for (const order of orders) {
       // Check if order history exists
       const { data: history, error: historyError } = await supabaseAdmin
         .from('order_history')
         .select('*')
         .eq('order_id', order.id);
-      
+
       if (historyError) {
         results.push({
           order_id: order.id,
@@ -76,23 +76,54 @@ export async function GET() {
         });
         continue;
       }
-      
+
       // If no history exists, create one
       if (!history || history.length === 0) {
         const timestamp = new Date().toISOString();
-        
-        const { data: newHistory, error: createError } = await supabaseAdmin
-          .from('order_history')
-          .insert({
-            order_id: order.id,
-            status: 'pending',
-            notes: 'Automatically created by fix tool',
-            created_at: timestamp,
-            updated_by: shopOwner.id // Explicitly set this to a valid user ID
-          })
-          .select()
-          .single();
-        
+
+        // Try multiple approaches to create order history
+        let newHistory = null;
+        let createError = null;
+
+        // Attempt 1: Full insert
+        try {
+          const { data, error } = await supabaseAdmin
+            .from('order_history')
+            .insert({
+              order_id: order.id,
+              status: 'pending',
+              notes: 'Automatically created by fix tool',
+              created_at: timestamp,
+              updated_by: shopOwner.id // Explicitly set this to a valid user ID
+            })
+            .select()
+            .single();
+
+          if (error) throw error;
+          newHistory = data;
+        } catch (error1) {
+          console.error('First attempt failed:', error1);
+
+          // Attempt 2: Minimal insert
+          try {
+            const { data, error } = await supabaseAdmin
+              .from('order_history')
+              .insert({
+                order_id: order.id,
+                status: 'pending',
+                updated_by: shopOwner.id // Only required fields
+              })
+              .select()
+              .single();
+
+            if (error) throw error;
+            newHistory = data;
+          } catch (error2) {
+            console.error('Second attempt failed:', error2);
+            createError = error2;
+          }
+        }
+
         if (createError) {
           results.push({
             order_id: order.id,
@@ -111,10 +142,10 @@ export async function GET() {
       } else {
         // Check if any history entries have null updated_by
         const entriesWithNullUpdatedBy = history.filter(h => h.updated_by === null);
-        
+
         if (entriesWithNullUpdatedBy.length > 0) {
           const fixResults = [];
-          
+
           for (const entry of entriesWithNullUpdatedBy) {
             const { data: fixed, error: fixError } = await supabaseAdmin
               .from('order_history')
@@ -122,7 +153,7 @@ export async function GET() {
               .eq('id', entry.id)
               .select()
               .single();
-            
+
             fixResults.push({
               history_id: entry.id,
               status: fixError ? 'error' : 'fixed',
@@ -130,7 +161,7 @@ export async function GET() {
               data: fixed
             });
           }
-          
+
           results.push({
             order_id: order.id,
             tracking_number: order.tracking_number,
@@ -148,20 +179,20 @@ export async function GET() {
         }
       }
     }
-    
+
     // Step 4: Create a test order with proper order history
     const timestamp = new Date().toISOString();
     const trackingNumber = `FIX-${Math.floor(100000 + Math.random() * 900000)}`;
-    
+
     // Get or create a customer
     const { data: customers, error: customersError } = await supabaseAdmin
       .from('customers')
       .select('*')
       .limit(1);
-    
+
     if (customersError) {
-      return NextResponse.json({ 
-        success: true, 
+      return NextResponse.json({
+        success: true,
         message: 'Fixed order history entries but failed to create test order',
         error: 'Failed to fetch customers',
         details: customersError,
@@ -169,19 +200,19 @@ export async function GET() {
         shopOwner
       });
     }
-    
+
     if (!customers || customers.length === 0) {
-      return NextResponse.json({ 
-        success: true, 
+      return NextResponse.json({
+        success: true,
         message: 'Fixed order history entries but failed to create test order',
         error: 'No customers found',
         results,
         shopOwner
       });
     }
-    
+
     const customer = customers[0];
-    
+
     // Create a test order
     const { data: testOrder, error: orderError } = await supabaseAdmin
       .from('orders')
@@ -197,17 +228,17 @@ export async function GET() {
       })
       .select()
       .single();
-    
+
     if (orderError) {
-      return NextResponse.json({ 
-        success: true, 
+      return NextResponse.json({
+        success: true,
         message: 'Fixed order history entries but failed to create test order',
         error: orderError.message,
         results,
         shopOwner
       });
     }
-    
+
     // Create order history for the test order
     const { data: testHistory, error: historyError } = await supabaseAdmin
       .from('order_history')
@@ -220,10 +251,10 @@ export async function GET() {
       })
       .select()
       .single();
-    
+
     if (historyError) {
-      return NextResponse.json({ 
-        success: true, 
+      return NextResponse.json({
+        success: true,
         message: 'Fixed order history entries but failed to create test order history',
         error: historyError.message,
         results,
@@ -231,21 +262,21 @@ export async function GET() {
         testOrder
       });
     }
-    
-    return NextResponse.json({ 
-      success: true, 
+
+    return NextResponse.json({
+      success: true,
       message: 'Fixed order history entries and created test order',
       results,
       shopOwner,
       testOrder,
       testHistory
     });
-    
+
   } catch (error: any) {
-    return NextResponse.json({ 
-      success: false, 
-      error: 'Unexpected error', 
-      details: error.message 
+    return NextResponse.json({
+      success: false,
+      error: 'Unexpected error',
+      details: error.message
     }, { status: 500 });
   }
 }

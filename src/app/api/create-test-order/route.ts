@@ -131,34 +131,16 @@ export async function GET() {
     // Double-check that we have a valid shop owner ID
     console.log('Shop owner ID for order history:', shopOwner.id);
 
-    // Use the API endpoint to create the order history
+    // Create order history directly
+    console.log('Creating order history with direct insert');
+
+    // Make multiple attempts with different approaches
+    let history = null;
+    let historyError = null;
+
+    // Attempt 1: Direct insert with all fields
     try {
-      const historyResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/create-order-history`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          order_id: order.id,
-          status: 'pending',
-          notes: 'Test order created',
-          updated_by: shopOwner.id
-        }),
-      });
-
-      const historyResult = await historyResponse.json();
-
-      if (!historyResult.success) {
-        throw new Error(historyResult.error || 'Failed to create order history');
-      }
-
-      const history = historyResult.history;
-      console.log('Order history created successfully via API:', historyResult);
-    } catch (historyError: any) {
-      console.error('Error creating order history via API:', historyError);
-
-      // Fallback to direct insert
-      const { data: directHistory, error: directHistoryError } = await supabaseAdmin
+      const { data: directHistory, error: directError } = await supabaseAdmin
         .from('order_history')
         .insert({
           order_id: order.id,
@@ -170,17 +152,77 @@ export async function GET() {
         .select()
         .single();
 
-      if (directHistoryError) {
-        return NextResponse.json({
-          success: false,
-          error: 'Failed to create order history using both methods',
-          apiError: historyError.message,
-          directError: directHistoryError
-        }, { status: 500 });
+      if (directError) {
+        console.error('Error in attempt 1:', directError);
+        throw directError;
       }
 
-      // Use the direct history result
-      const history = directHistory;
+      history = directHistory;
+      console.log('Order history created successfully in attempt 1');
+    } catch (error1) {
+      // Attempt 2: Try with minimal fields
+      try {
+        const { data: minimalHistory, error: minimalError } = await supabaseAdmin
+          .from('order_history')
+          .insert({
+            order_id: order.id,
+            status: 'pending',
+            updated_by: shopOwner.id
+          })
+          .select()
+          .single();
+
+        if (minimalError) {
+          console.error('Error in attempt 2:', minimalError);
+          throw minimalError;
+        }
+
+        history = minimalHistory;
+        console.log('Order history created successfully in attempt 2');
+      } catch (error2) {
+        // Attempt 3: Try with hardcoded values
+        try {
+          // Get all profiles to find a valid user ID
+          const { data: allProfiles } = await supabaseAdmin
+            .from('profiles')
+            .select('id')
+            .limit(10);
+
+          const backupUserId = allProfiles && allProfiles.length > 0 ?
+            allProfiles[0].id : '9939c3f3-e3fc-4af7-9ecd-31ab535bce59';
+
+          const { data: backupHistory, error: backupError } = await supabaseAdmin
+            .from('order_history')
+            .insert({
+              order_id: order.id,
+              status: 'pending',
+              notes: 'Emergency backup insert',
+              created_at: timestamp,
+              updated_by: backupUserId
+            })
+            .select()
+            .single();
+
+          if (backupError) {
+            console.error('Error in attempt 3:', backupError);
+            throw backupError;
+          }
+
+          history = backupHistory;
+          console.log('Order history created successfully in attempt 3');
+        } catch (error3) {
+          historyError = error3;
+          console.error('All attempts to create order history failed:', error1, error2, error3);
+        }
+      }
+    }
+
+    if (historyError) {
+      return NextResponse.json({
+        success: false,
+        error: 'Failed to create order history after multiple attempts',
+        details: historyError
+      }, { status: 500 });
     }
 
     // History error handling is now done in the try/catch block above

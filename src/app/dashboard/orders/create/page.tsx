@@ -223,7 +223,10 @@ export default function CreateOrderPage() {
 
       console.log('Creating order history with data:', historyData);
 
-      // Use a direct API call to create the order history
+      // Try multiple approaches to create order history
+      let historySuccess = false;
+
+      // Attempt 1: Use the API endpoint
       try {
         const historyResponse = await fetch('/api/create-order-history', {
           method: 'POST',
@@ -241,9 +244,54 @@ export default function CreateOrderPage() {
         }
 
         console.log('Order history created successfully via API:', historyResult);
-      } catch (historyError: any) {
-        console.error('Error creating order history:', historyError);
-        throw new Error(`Failed to create order history: ${historyError.message}`);
+        historySuccess = true;
+      } catch (apiError: any) {
+        console.error('API approach failed:', apiError);
+
+        // Attempt 2: Direct insert
+        try {
+          const { error: directError } = await supabase
+            .from('order_history')
+            .insert({
+              order_id: orderData.id,
+              status: 'pending',
+              notes: 'Order created (direct insert)',
+              created_at: new Date().toISOString(),
+              updated_by: updatedById
+            });
+
+          if (directError) {
+            console.error('Direct insert failed:', directError);
+            throw directError;
+          }
+
+          console.log('Order history created successfully via direct insert');
+          historySuccess = true;
+        } catch (directError: any) {
+          console.error('Direct insert failed:', directError);
+
+          // Attempt 3: Minimal insert
+          try {
+            const { error: minimalError } = await supabase
+              .from('order_history')
+              .insert({
+                order_id: orderData.id,
+                status: 'pending',
+                updated_by: updatedById
+              });
+
+            if (minimalError) {
+              console.error('Minimal insert failed:', minimalError);
+              throw minimalError;
+            }
+
+            console.log('Order history created successfully via minimal insert');
+            historySuccess = true;
+          } catch (minimalError: any) {
+            console.error('All attempts failed:', apiError, directError, minimalError);
+            throw new Error(`Failed to create order history after multiple attempts`);
+          }
+        }
       }
 
       // Order history is now created via API call above
