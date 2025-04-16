@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
-import { PlanTier } from '@/types';
+import { PlanTier } from '../../types';
 
 // Create a Supabase client
 const supabaseUrl = 'https://slujerwtublzuxtzdtyw.supabase.co';

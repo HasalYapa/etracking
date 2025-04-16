@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import { FloatingNav } from "@/components/ui/floating-navbar";
+import { FloatingNav } from "./ui/floating-navbar";
 import { IconHome, IconMessage, IconUser, IconSearch, IconCoin } from "@tabler/icons-react";
 import Link from "next/link";
 

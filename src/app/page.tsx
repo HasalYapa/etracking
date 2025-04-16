@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
-import { TypewriterEffectSmooth } from "@/components/ui/typewriter-effect";
-import { WobbleCard } from "@/components/ui/wobble-card";
+import { TypewriterEffectSmooth } from "../components/ui/typewriter-effect";
+import { WobbleCard } from "../components/ui/wobble-card";
 
 export default function Home() {
   return (

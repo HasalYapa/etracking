@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import Link from 'next/link';
-import { supabase } from '@/lib/supabase-client';
+import { supabase } from '../../lib/supabase-client';
 
 export default function TrackingPage() {
   const [trackingNumber, setTrackingNumber] = useState('');

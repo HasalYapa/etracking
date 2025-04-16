@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { CardSpotlight } from '@/components/ui/card-spotlight';
+import { CardSpotlight } from '../../components/ui/CardSpotlight';
 
 // Define plan types
 type PlanTier = 'basic' | 'standard' | 'premium';
