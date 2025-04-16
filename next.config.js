@@ -6,9 +6,6 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  experimental: {
-    esmExternals: 'loose',
-  },
 }
 
 module.exports = nextConfig
