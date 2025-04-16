@@ -118,7 +118,7 @@ export async function GET() {
       }, { status: 500 });
     }
 
-    // Step 4: Create order history entry
+    // Step 4: Create order history entry using a different approach
     // Make absolutely sure shopOwner.id is not null
     if (!shopOwner || !shopOwner.id) {
       return NextResponse.json({
@@ -131,37 +131,59 @@ export async function GET() {
     // Double-check that we have a valid shop owner ID
     console.log('Shop owner ID for order history:', shopOwner.id);
 
-    const historyData = {
-      order_id: order.id,
-      status: 'pending',
-      notes: 'Test order created',
-      created_at: timestamp,
-      updated_by: shopOwner.id
-    };
+    // Use the API endpoint to create the order history
+    try {
+      const historyResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/create-order-history`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          order_id: order.id,
+          status: 'pending',
+          notes: 'Test order created',
+          updated_by: shopOwner.id
+        }),
+      });
 
-    console.log('Creating order history with data:', historyData);
+      const historyResult = await historyResponse.json();
 
-    // Use a direct SQL query to insert the order history
-    const { data: history, error: historyError } = await supabaseAdmin
-      .from('order_history')
-      .insert({
-        order_id: order.id,
-        status: 'pending',
-        notes: 'Test order created',
-        created_at: timestamp,
-        updated_by: shopOwner.id // Explicitly set this value
-      })
-      .select()
-      .single();
+      if (!historyResult.success) {
+        throw new Error(historyResult.error || 'Failed to create order history');
+      }
 
-    if (historyError) {
-      return NextResponse.json({
-        success: false,
-        error: 'Order history creation failed',
-        details: historyError,
-        historyData
-      }, { status: 500 });
+      const history = historyResult.history;
+      console.log('Order history created successfully via API:', historyResult);
+    } catch (historyError: any) {
+      console.error('Error creating order history via API:', historyError);
+
+      // Fallback to direct insert
+      const { data: directHistory, error: directHistoryError } = await supabaseAdmin
+        .from('order_history')
+        .insert({
+          order_id: order.id,
+          status: 'pending',
+          notes: 'Test order created (direct insert)',
+          created_at: timestamp,
+          updated_by: shopOwner.id
+        })
+        .select()
+        .single();
+
+      if (directHistoryError) {
+        return NextResponse.json({
+          success: false,
+          error: 'Failed to create order history using both methods',
+          apiError: historyError.message,
+          directError: directHistoryError
+        }, { status: 500 });
+      }
+
+      // Use the direct history result
+      const history = directHistory;
     }
+
+    // History error handling is now done in the try/catch block above
 
     return NextResponse.json({
       success: true,
