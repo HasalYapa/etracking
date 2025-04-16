@@ -93,40 +93,74 @@ export default function CreateOrderPage() {
       const trackingNumber = `ORD-${Math.floor(100000 + Math.random() * 900000)}`;
 
       // Create customer first
-      const { data: customerData, error: customerCreateError } = await supabase
+      // Check if customer already exists by phone number
+      const { data: existingCustomers, error: customerCheckError } = await supabase
         .from('customers')
-        .upsert({
-          name: formData.customerName,
-          phone: formData.customerPhone,
-          email: formData.customerEmail || null,
-          address: formData.deliveryAddress, // Using delivery address as customer address
-          shop_id: user.id,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .select()
-        .single();
+        .select('*')
+        .eq('phone', formData.customerPhone)
+        .eq('shop_id', user.id);
 
-      if (customerCreateError) {
-        throw customerCreateError;
+      if (customerCheckError) {
+        console.error('Error checking for existing customer:', customerCheckError);
+        throw customerCheckError;
       }
 
+      let customerData;
+
+      if (existingCustomers && existingCustomers.length > 0) {
+        // Use existing customer
+        console.log('Using existing customer:', existingCustomers[0]);
+        customerData = existingCustomers[0];
+      } else {
+        // Create new customer
+        console.log('Creating new customer with shop_id:', user.id);
+
+        const { data: newCustomer, error: customerCreateError } = await supabase
+          .from('customers')
+          .insert({
+            name: formData.customerName,
+            phone: formData.customerPhone,
+            email: formData.customerEmail || null,
+            address: formData.deliveryAddress, // Using delivery address as customer address
+            shop_id: user.id,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .select()
+          .single();
+
+        if (customerCreateError) {
+          console.error('Error creating customer:', customerCreateError);
+          throw customerCreateError;
+        }
+
+        customerData = newCustomer;
+      }
+
+      console.log('Customer data for order:', customerData);
+
       // Create order with customer_id
+      const orderInsertData = {
+        tracking_number: trackingNumber,
+        shop_id: user.id,
+        customer_id: customerData.id, // Use the customer ID from the previous step
+        driver_id: formData.driverId || null,
+        status: 'pending',
+        delivery_address: formData.deliveryAddress,
+        delivery_notes: formData.deliveryNotes || null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      console.log('Creating order with data:', orderInsertData);
+
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
-        .insert({
-          tracking_number: trackingNumber,
-          shop_id: user.id,
-          customer_id: customerData.id, // Use the customer ID from the previous step
-          driver_id: formData.driverId || null,
-          status: 'pending',
-          delivery_address: formData.deliveryAddress,
-          delivery_notes: formData.deliveryNotes || null,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
+        .insert(orderInsertData)
         .select()
         .single();
+
+      console.log('Order creation result:', { orderData, orderError });
 
       if (orderError) {
         throw orderError;
