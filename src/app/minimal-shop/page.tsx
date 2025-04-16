@@ -199,8 +199,6 @@ export default function MinimalShopPage() {
 
   const exportToCSV = () => {
     try {
-      addLog('Exporting orders to CSV...');
-
       // Filter orders if needed
       const ordersToExport = statusFilter === 'all'
         ? orders
@@ -230,11 +228,8 @@ export default function MinimalShopPage() {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-
-      addLog('CSV export completed');
     } catch (err: any) {
       console.error('Error exporting to CSV:', err);
-      addLog(`Error exporting to CSV: ${err.message}`);
       setError(err.message);
     }
   };
@@ -381,7 +376,7 @@ export default function MinimalShopPage() {
               </div>
             </div>
 
-              {loading ? (
+            {loading ? (
                 <div className="flex justify-center items-center h-60">
                   <div className="text-center">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-3"></div>
@@ -457,8 +452,6 @@ export default function MinimalShopPage() {
               )}
             </div>
           </div>
-
-
         </div>
 
         {/* Order Form Modal */}
