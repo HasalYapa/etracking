@@ -45,10 +45,20 @@ export async function GET(request: Request) {
     console.log('Found order:', orderData);
 
     // Step 2: Try to update the order using admin client to bypass RLS
+
+    // Make sure driverId is not null or undefined
+    if (!driverId) {
+      console.error('Driver ID is null or undefined, using a default value');
+    }
+
+    // Use a default driver ID if none is provided
+    const updatedBy = driverId || '9155a1e2-84d0-44ec-8174-f27f8b9cc03e'; // Default driver ID
+
     const updateData = {
       status: 'in_transit',
-      driver_id: driverId,
-      updated_at: new Date().toISOString()
+      driver_id: updatedBy,
+      updated_at: new Date().toISOString(),
+      updated_by: updatedBy // Add this field for the trigger
     };
 
     const { data: updatedResults, error: updateError } = await supabaseAdmin

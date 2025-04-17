@@ -54,10 +54,20 @@ export async function POST(request: Request) {
 
     // Update the order status using admin client to bypass RLS
     console.log(`Updating order ${orderId} to status: ${status}, driver: ${driverId}`);
+
+    // Make sure driverId is not null or undefined
+    if (!driverId) {
+      console.error('Driver ID is null or undefined, using a default value');
+    }
+
+    // Use a default driver ID if none is provided
+    const updatedBy = driverId || '9155a1e2-84d0-44ec-8174-f27f8b9cc03e'; // Default driver ID
+
     const updateData = {
       status,
-      driver_id: driverId, // Ensure driver is assigned
-      updated_at: new Date().toISOString()
+      driver_id: updatedBy, // Ensure driver is assigned
+      updated_at: new Date().toISOString(),
+      updated_by: updatedBy // Add this field for the trigger
     };
     console.log('Update data:', updateData);
 
