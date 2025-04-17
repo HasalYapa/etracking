@@ -19,6 +19,10 @@ export const metadata: Metadata = {
   description: "Simple, Real-Time Delivery Tracking for Sri Lankan Small Businesses",
   icons: {
     icon: [
+      { url: '/images/logo.png', sizes: '500x500', type: 'image/png' },
+      { url: '/favicon.ico', sizes: 'any' },
+    ],
+    apple: [
       { url: '/images/logo.png' },
     ],
   },
