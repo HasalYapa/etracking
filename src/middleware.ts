@@ -101,9 +101,23 @@ export async function middleware(request: NextRequest) {
         request.nextUrl.pathname.startsWith('/map-assignment') ||
         request.nextUrl.pathname.startsWith('/minimal-shop') ||
         request.nextUrl.pathname.startsWith('/minimal-driver')) {
+      // Skip login pages to avoid redirect loops
+      if (request.nextUrl.pathname.includes('login')) {
+        console.log('Login page detected, skipping auth check');
+        return response;
+      }
+
       if (!session) {
-        console.log('No session found, redirecting to login');
-        return NextResponse.redirect(new URL('/login', request.url));
+        console.log('No session found, redirecting to appropriate login page');
+
+        // Determine which login page to redirect to based on the requested path
+        if (request.nextUrl.pathname.includes('driver')) {
+          return NextResponse.redirect(new URL('/driver-login', request.url));
+        } else if (request.nextUrl.pathname.includes('admin')) {
+          return NextResponse.redirect(new URL('/admin-login', request.url));
+        } else {
+          return NextResponse.redirect(new URL('/shop-login', request.url));
+        }
       }
 
       try {
@@ -129,17 +143,17 @@ export async function middleware(request: NextRequest) {
         }
 
         // Route access logic based on role
-        if (request.nextUrl.pathname.startsWith('/dashboard') && userRole !== 'shop_owner') {
+        if ((request.nextUrl.pathname.startsWith('/dashboard') || request.nextUrl.pathname.startsWith('/minimal-shop')) && userRole !== 'shop_owner') {
           if (userRole === 'driver') {
-            return NextResponse.redirect(new URL('/driver', request.url));
+            return NextResponse.redirect(new URL('/minimal-driver', request.url));
           } else if (userRole === 'admin') {
             return NextResponse.redirect(new URL('/admin', request.url));
           }
         }
 
-        if (request.nextUrl.pathname.startsWith('/driver') && userRole !== 'driver') {
+        if ((request.nextUrl.pathname.startsWith('/driver') || request.nextUrl.pathname.startsWith('/minimal-driver')) && userRole !== 'driver') {
           if (userRole === 'shop_owner') {
-            return NextResponse.redirect(new URL('/dashboard', request.url));
+            return NextResponse.redirect(new URL('/minimal-shop', request.url));
           } else if (userRole === 'admin') {
             return NextResponse.redirect(new URL('/admin', request.url));
           }
@@ -147,9 +161,9 @@ export async function middleware(request: NextRequest) {
 
         if (request.nextUrl.pathname.startsWith('/admin') && userRole !== 'admin') {
           if (userRole === 'shop_owner') {
-            return NextResponse.redirect(new URL('/dashboard', request.url));
+            return NextResponse.redirect(new URL('/minimal-shop', request.url));
           } else if (userRole === 'driver') {
-            return NextResponse.redirect(new URL('/driver', request.url));
+            return NextResponse.redirect(new URL('/minimal-driver', request.url));
           }
         }
       } catch (err) {
@@ -167,6 +181,9 @@ export const config = {
   matcher: [
     '/login',
     '/register',
+    '/shop-login',
+    '/driver-login',
+    '/admin-login',
     '/dashboard/:path*',
     '/driver/:path*',
     '/admin/:path*',
