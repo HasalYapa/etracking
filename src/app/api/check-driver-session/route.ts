@@ -12,11 +12,72 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const sessionToken = searchParams.get('session');
 
+    // If no session token is provided, try to get the session from cookies
     if (!sessionToken) {
+      console.log('API: No session token provided, checking for session in cookies');
+
+      // Get session from cookies
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+      if (sessionError || !session) {
+        console.log('API: No session found in cookies');
+        return NextResponse.json({
+          success: false,
+          authenticated: false,
+          error: 'No active session found'
+        });
+      }
+
+      console.log('API: Session found in cookies');
+
+      // Get user profile to check role
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', session.user.id)
+        .single();
+
+      if (profileError) {
+        console.error('API: Error fetching profile from cookies session:', profileError);
+        return NextResponse.json({
+          success: false,
+          authenticated: true,
+          isDriver: false,
+          error: 'Error verifying user role'
+        });
+      }
+
+      const isDriver = profileData.role === 'driver';
+
+      // Get driver assignments if this is a driver
+      let assignments = [];
+      if (isDriver) {
+        const { data: ordersData, error: ordersError } = await supabase
+          .from('orders')
+          .select(`
+            *,
+            customers(*)
+          `)
+          .eq('driver_id', session.user.id)
+          .order('created_at', { ascending: false });
+
+        if (!ordersError && ordersData) {
+          assignments = ordersData.map(order => ({
+            ...order,
+            customer_name: order.customers?.name || 'Unknown',
+            customer_phone: order.customers?.phone || 'N/A',
+            items: order.items || order.delivery_notes || 'No items specified',
+          }));
+        }
+      }
+
       return NextResponse.json({
-        success: false,
-        authenticated: false,
-        error: 'No session token provided'
+        success: true,
+        authenticated: true,
+        isDriver,
+        profile: profileData,
+        assignments,
+        user: session.user
       });
     }
 
