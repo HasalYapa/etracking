@@ -5,14 +5,15 @@ import Image from 'next/image';
 export default function LogoPlaceholder() {
   return (
     <div className="flex items-center">
-      <div className="h-10 w-auto">
+      <div className="h-16 w-auto">
         <Image
           src="/images/logo.png"
           alt="etracking logo"
           width={500}
           height={500}
           className="h-full w-auto object-contain"
-          style={{ maxHeight: '40px' }}
+          style={{ maxHeight: '64px' }}
+          priority
         />
       </div>
     </div>

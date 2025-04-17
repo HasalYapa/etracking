@@ -620,14 +620,14 @@ export default function MinimalShopPage() {
       </div>
 
       {/* Footer */}
-      <footer className="bg-white border-t border-gray-200 py-3 mt-auto w-full">
+      <footer className="bg-white border-t border-gray-200 py-4 mt-auto w-full">
         <div className="w-full px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-3 items-center">
-            <div className="flex justify-center md:justify-start mb-2 md:mb-0">
+            <div className="flex justify-center md:justify-start mb-3 md:mb-0">
               <LogoPlaceholder />
             </div>
-            <div className="flex justify-center mb-2 md:mb-0">
-              <span className="text-xs text-gray-600">© {new Date().getFullYear()} etracking.store. All rights reserved.</span>
+            <div className="flex justify-center mb-3 md:mb-0">
+              <span className="text-sm text-gray-600">© {new Date().getFullYear()} etracking.store. All rights reserved.</span>
             </div>
             <div className="flex justify-center md:justify-end">
               <RealTimeClock />
