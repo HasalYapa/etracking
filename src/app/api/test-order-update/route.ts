@@ -93,13 +93,20 @@ export async function GET(request: Request) {
     // Step 3: Try to create an order history entry using admin client to bypass RLS
 
     // Use the same effective driver ID for history entry
+    // IMPORTANT: updated_by is a required field in the order_history table
     const historyData = {
       order_id: orderId,
       status: 'in_transit',
       notes: 'Status updated to in_transit (test)',
-      updated_by: effectiveDriverId, // Use the same effective driver ID
+      updated_by: effectiveDriverId || '9155a1e2-84d0-44ec-8174-f27f8b9cc03e', // Ensure this is never null
       created_at: new Date().toISOString()
     };
+
+    // Double-check that updated_by is not null
+    if (!historyData.updated_by) {
+      console.error('updated_by is still null after assignment, using hardcoded default');
+      historyData.updated_by = '9155a1e2-84d0-44ec-8174-f27f8b9cc03e'; // Hardcoded default driver ID
+    }
 
     const { data: historyResult, error: historyError } = await supabaseAdmin
       .from('order_history')
