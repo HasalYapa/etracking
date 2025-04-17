@@ -107,6 +107,12 @@ export async function middleware(request: NextRequest) {
         return response;
       }
 
+      // Skip signup pages
+      if (request.nextUrl.pathname.includes('signup')) {
+        console.log('Signup page detected, skipping auth check');
+        return response;
+      }
+
       if (!session) {
         console.log('No session found, redirecting to appropriate login page');
 

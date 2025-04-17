@@ -5,7 +5,7 @@ import Link from 'next/link';
 import supabase from '@/utils/supabase-client';
 
 export default function DriverLogin() {
-  const [email, setEmail] = useState('dimanthayapa2001@gmail.com');
+  const [email, setEmail] = useState('dumanthayapa2001@gmail.com');
   const [password, setPassword] = useState('Yapa@2006');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

@@ -45,7 +45,30 @@ export default function ShopLogin() {
       }
 
       console.log('Sign in successful:', data);
-      setSuccess('Login successful! Redirecting...');
+
+      // Verify that the user has the correct role
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('role, name, email')
+        .eq('id', data.user.id)
+        .single();
+
+      if (profileError) {
+        console.error('Error fetching profile:', profileError);
+        setError('Error verifying user role. Please try again.');
+        return;
+      }
+
+      console.log('Profile found:', profile);
+
+      if (profile.role !== 'shop_owner') {
+        console.error(`User is not a shop owner (${profile.role})`);
+        setError('Access denied. This login is for shop owners only.');
+        await supabase.auth.signOut();
+        return;
+      }
+
+      setSuccess(`Login successful! Welcome, ${profile.name}. Redirecting...`);
 
       // Force a delay to ensure session is properly established
       await new Promise(resolve => setTimeout(resolve, 1000));
