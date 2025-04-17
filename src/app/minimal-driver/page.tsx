@@ -559,8 +559,8 @@ export default function MinimalDriverPage() {
         return;
       }
 
-      if (data.data) {
-        setIsAvailable(data.data.available);
+      if (data) {
+        setIsAvailable(data.available);
       }
     } catch (error) {
       console.error('Error fetching driver availability:', error);
@@ -598,11 +598,10 @@ export default function MinimalDriverPage() {
       setAvailabilityLoading(true);
 
       // Get current location
-      let lat = null;
-      let lng = null;
-      if (currentLocation) {
-        lat = currentLocation.lat;
-        lng = currentLocation.lng;
+      if (!currentLocation) {
+        alert('Location data is required. Please allow location access and try again.');
+        setAvailabilityLoading(false);
+        return;
       }
 
       const response = await fetch('/api/driver/availability', {
@@ -613,8 +612,8 @@ export default function MinimalDriverPage() {
         body: JSON.stringify({
           driverId: profile.id,
           available: !isAvailable,
-          latitude: lat,
-          longitude: lng
+          latitude: currentLocation.lat,
+          longitude: currentLocation.lng
         })
       });
 
@@ -648,7 +647,7 @@ export default function MinimalDriverPage() {
   const handleSignOut = async () => {
     try {
       // Set driver as unavailable before signing out
-      if (isAvailable && profile?.id) {
+      if (isAvailable && profile?.id && currentLocation) {
         await fetch('/api/driver/availability', {
           method: 'POST',
           headers: {
@@ -656,7 +655,9 @@ export default function MinimalDriverPage() {
           },
           body: JSON.stringify({
             driverId: profile.id,
-            available: false
+            available: false,
+            latitude: currentLocation.lat,
+            longitude: currentLocation.lng
           })
         });
       }
