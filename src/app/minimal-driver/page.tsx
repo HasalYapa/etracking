@@ -588,7 +588,9 @@ export default function MinimalDriverPage() {
           // Success - set the success message
           setScanSuccess(`Successfully updated order status for order ${orderByIdData.tracking_number} from ${orderByIdData.status} to in_transit`);
 
-          // No need to manually refresh assignments as the real-time subscription will handle it
+          // Manually refresh assignments to ensure UI is updated
+          console.log('MinimalDriverPage: Manually refreshing assignments after scan');
+          await loadDriverAssignments(profile.id);
 
           // Close the scanner after a delay
           setTimeout(() => {
@@ -685,6 +687,10 @@ export default function MinimalDriverPage() {
         // Success - set the success message
         setScanSuccess(`Successfully updated order status for order ${orderByIdData.tracking_number} from ${orderByIdData.status} to in_transit`);
 
+        // Manually refresh assignments to ensure UI is updated
+        console.log('MinimalDriverPage: Manually refreshing assignments after scan');
+        await loadDriverAssignments(profile.id);
+
         // Close the scanner after a delay
         setTimeout(() => {
           setScannerOpen(false);
@@ -747,6 +753,10 @@ export default function MinimalDriverPage() {
 
       // Success - set the success message
       setScanSuccess(`Successfully updated order status for order ${orderData.tracking_number} from ${orderData.status} to in_transit`);
+
+      // Manually refresh assignments to ensure UI is updated
+      console.log('MinimalDriverPage: Manually refreshing assignments after scan');
+      await loadDriverAssignments(profile.id);
 
       // Close the scanner after a delay
       setTimeout(() => {
@@ -827,10 +837,10 @@ export default function MinimalDriverPage() {
       }
 
       // Success - set the success message
-      setUpdateSuccess(`Successfully updated order status to ${newStatus}`);
+      setScanSuccess(`Successfully updated order status to ${newStatus}`);
 
       // Refresh the assignments
-      fetchAssignments();
+      await loadDriverAssignments(profile.id);
 
       // Show a toast notification instead of an alert
       if (Notification.permission === 'granted') {
