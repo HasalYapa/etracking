@@ -549,9 +549,9 @@ export default function MinimalDriverPage() {
   };
 
   // Fetch driver availability status
-  const fetchDriverAvailability = async (_driverId: string) => {
+  const fetchDriverAvailability = async (driverId: string) => {
     try {
-      const response = await fetch('/api/driver/availability');
+      const response = await fetch(`/api/driver/availability?driverId=${driverId}`);
       const data = await response.json();
 
       if (data.error) {
@@ -568,7 +568,7 @@ export default function MinimalDriverPage() {
   };
 
   // Update driver location in the database
-  const updateDriverLocation = async (_driverId: string, lat: number, lng: number) => {
+  const updateDriverLocation = async (driverId: string, lat: number, lng: number) => {
     try {
       await fetch('/api/driver/availability', {
         method: 'POST',
@@ -576,6 +576,7 @@ export default function MinimalDriverPage() {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
+          driverId,
           available: isAvailable,
           latitude: lat,
           longitude: lng
@@ -589,6 +590,11 @@ export default function MinimalDriverPage() {
   // Toggle driver availability
   const toggleAvailability = async () => {
     try {
+      if (!profile || !profile.id) {
+        alert('User profile not loaded. Please refresh the page.');
+        return;
+      }
+
       setAvailabilityLoading(true);
 
       // Get current location
@@ -605,6 +611,7 @@ export default function MinimalDriverPage() {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
+          driverId: profile.id,
           available: !isAvailable,
           latitude: lat,
           longitude: lng
@@ -648,6 +655,7 @@ export default function MinimalDriverPage() {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
+            driverId: profile.id,
             available: false
           })
         });

@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
-import { createServerClient } from '@supabase/ssr';
 
 // Create a Supabase client with service role key to bypass RLS
 const supabaseUrl = 'https://slujerwtublzuxtzdtyw.supabase.co';
@@ -31,50 +30,36 @@ function deg2rad(deg: number): number {
 // GET available drivers
 export async function GET(request: Request) {
   try {
-    // Get the authenticated user
-    const cookieStore = cookies();
-    const supabase = createServerClient(
-      supabaseUrl,
-      supabaseServiceKey,
-      {
-        cookies: {
-          get(name: string) {
-            return cookieStore.get(name)?.value;
-          },
-          set(name: string, value: string, options: any) {
-            cookieStore.set(name, value);
-          },
-          remove(name: string, options: any) {
-            cookieStore.delete(name);
-          },
-        },
-      }
-    );
-    const { data: { session } } = await supabase.auth.getSession();
+    // Get the shop owner ID from the query parameters
+    const { searchParams } = new URL(request.url);
+    const shopOwnerId = searchParams.get('shopOwnerId');
 
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!shopOwnerId) {
+      return NextResponse.json({ error: 'Shop owner ID is required' }, { status: 400 });
     }
 
     // Get user profile to determine role
-    const { data: profile } = await supabase
+    const { data: profile } = await supabaseAdmin
       .from('profiles')
       .select('role')
-      .eq('id', session.user.id)
+      .eq('id', shopOwnerId)
       .single();
+
+    if (!profile) {
+      return NextResponse.json({ error: 'Shop owner not found' }, { status: 404 });
+    }
 
     if (profile?.role !== 'shop_owner' && profile?.role !== 'admin') {
       return NextResponse.json({ error: 'Only shop owners and admins can access this endpoint' }, { status: 403 });
     }
 
     // Get query parameters
-    const { searchParams } = new URL(request.url);
     const latitude = searchParams.get('latitude') ? parseFloat(searchParams.get('latitude')!) : null;
     const longitude = searchParams.get('longitude') ? parseFloat(searchParams.get('longitude')!) : null;
     const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : 5;
 
     // Get available drivers
-    const { data: availableDrivers, error } = await supabase
+    const { data: availableDrivers, error } = await supabaseAdmin
       .from('driver_availability')
       .select(`
         *,
@@ -117,56 +102,39 @@ export async function GET(request: Request) {
 // POST to find and assign a driver to an order
 export async function POST(request: Request) {
   try {
-    // Get the authenticated user
-    const cookieStore = cookies();
-    const supabase = createServerClient(
-      supabaseUrl,
-      supabaseServiceKey,
-      {
-        cookies: {
-          get(name: string) {
-            return cookieStore.get(name)?.value;
-          },
-          set(name: string, value: string, options: any) {
-            cookieStore.set(name, value);
-          },
-          remove(name: string, options: any) {
-            cookieStore.delete(name);
-          },
-        },
-      }
-    );
-    const { data: { session } } = await supabase.auth.getSession();
+    // Parse request body
+    const body = await request.json();
+    const { shopOwnerId, orderId, latitude, longitude } = body;
 
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!shopOwnerId) {
+      return NextResponse.json({ error: 'Shop owner ID is required' }, { status: 400 });
     }
 
     // Get user profile to determine role
-    const { data: profile } = await supabase
+    const { data: profile } = await supabaseAdmin
       .from('profiles')
       .select('role')
-      .eq('id', session.user.id)
+      .eq('id', shopOwnerId)
       .single();
+
+    if (!profile) {
+      return NextResponse.json({ error: 'Shop owner not found' }, { status: 404 });
+    }
 
     if (profile?.role !== 'shop_owner' && profile?.role !== 'admin') {
       return NextResponse.json({ error: 'Only shop owners and admins can access this endpoint' }, { status: 403 });
     }
-
-    // Parse request body
-    const body = await request.json();
-    const { orderId, latitude, longitude } = body;
 
     if (!orderId) {
       return NextResponse.json({ error: 'Order ID is required' }, { status: 400 });
     }
 
     // Get the order to verify it exists and belongs to this shop
-    const { data: order, error: orderError } = await supabase
+    const { data: order, error: orderError } = await supabaseAdmin
       .from('orders')
       .select('*')
       .eq('id', orderId)
-      .eq('shop_id', session.user.id)
+      .eq('shop_id', shopOwnerId)
       .single();
 
     if (orderError) {
@@ -175,7 +143,7 @@ export async function POST(request: Request) {
     }
 
     // Get available drivers
-    const { data: availableDrivers, error } = await supabase
+    const { data: availableDrivers, error } = await supabaseAdmin
       .from('driver_availability')
       .select(`
         *,
@@ -217,7 +185,7 @@ export async function POST(request: Request) {
     }
 
     // Assign the driver to the order
-    const { data: updatedOrder, error: updateError } = await supabase
+    const { data: updatedOrder, error: updateError } = await supabaseAdmin
       .from('orders')
       .update({
         driver_id: selectedDriver.driver_id,
@@ -234,7 +202,7 @@ export async function POST(request: Request) {
     }
 
     // Create a notification for the driver
-    const { error: notificationError } = await supabase
+    const { error: notificationError } = await supabaseAdmin
       .from('driver_notifications')
       .insert({
         driver_id: selectedDriver.driver_id,
@@ -251,13 +219,13 @@ export async function POST(request: Request) {
     }
 
     // Create an order history record
-    const { error: historyError } = await supabase
+    const { error: historyError } = await supabaseAdmin
       .from('order_history')
       .insert({
         order_id: orderId,
         status: 'assigned',
         notes: `Order assigned to driver ${selectedDriver.driver.name}`,
-        updated_by: session.user.id
+        updated_by: shopOwnerId
       });
 
     if (historyError) {

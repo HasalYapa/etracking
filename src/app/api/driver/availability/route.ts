@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
-import { createServerClient } from '@supabase/ssr';
 
 // Create a Supabase client with service role key to bypass RLS
 const supabaseUrl = 'https://slujerwtublzuxtzdtyw.supabase.co';
@@ -13,47 +12,34 @@ const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 // GET driver availability status
 export async function GET(request: Request) {
   try {
-    // Get the authenticated user
-    const cookieStore = cookies();
-    const supabase = createServerClient(
-      supabaseUrl,
-      supabaseServiceKey,
-      {
-        cookies: {
-          get(name: string) {
-            return cookieStore.get(name)?.value;
-          },
-          set(name: string, value: string, options: any) {
-            cookieStore.set(name, value);
-          },
-          remove(name: string, options: any) {
-            cookieStore.delete(name);
-          },
-        },
-      }
-    );
-    const { data: { session } } = await supabase.auth.getSession();
+    // Get the driver ID from the query parameters
+    const { searchParams } = new URL(request.url);
+    const driverId = searchParams.get('driverId');
 
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!driverId) {
+      return NextResponse.json({ error: 'Driver ID is required' }, { status: 400 });
     }
 
     // Get user profile to determine role
-    const { data: profile } = await supabase
+    const { data: profile } = await supabaseAdmin
       .from('profiles')
       .select('role')
-      .eq('id', session.user.id)
+      .eq('id', driverId)
       .single();
+
+    if (!profile) {
+      return NextResponse.json({ error: 'Driver not found' }, { status: 404 });
+    }
 
     if (profile?.role !== 'driver') {
       return NextResponse.json({ error: 'Only drivers can access this endpoint' }, { status: 403 });
     }
 
     // Get driver availability
-    const { data: availability, error } = await supabase
+    const { data: availability, error } = await supabaseAdmin
       .from('driver_availability')
       .select('*')
-      .eq('driver_id', session.user.id)
+      .eq('driver_id', driverId)
       .single();
 
     if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned" error
@@ -63,10 +49,10 @@ export async function GET(request: Request) {
 
     // If no availability record exists, create one
     if (!availability) {
-      const { data: newAvailability, error: insertError } = await supabase
+      const { data: newAvailability, error: insertError } = await supabaseAdmin
         .from('driver_availability')
         .insert({
-          driver_id: session.user.id,
+          driver_id: driverId,
           available: false,
           last_active: new Date().toISOString()
         })
@@ -91,44 +77,30 @@ export async function GET(request: Request) {
 // Update driver availability
 export async function POST(request: Request) {
   try {
-    // Get the authenticated user
-    const cookieStore = cookies();
-    const supabase = createServerClient(
-      supabaseUrl,
-      supabaseServiceKey,
-      {
-        cookies: {
-          get(name: string) {
-            return cookieStore.get(name)?.value;
-          },
-          set(name: string, value: string, options: any) {
-            cookieStore.set(name, value);
-          },
-          remove(name: string, options: any) {
-            cookieStore.delete(name);
-          },
-        },
-      }
-    );
-    const { data: { session } } = await supabase.auth.getSession();
+    // Parse request body
+    const body = await request.json();
+    const { driverId } = body;
 
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!driverId) {
+      return NextResponse.json({ error: 'Driver ID is required' }, { status: 400 });
     }
 
     // Get user profile to determine role
-    const { data: profile } = await supabase
+    const { data: profile } = await supabaseAdmin
       .from('profiles')
       .select('role')
-      .eq('id', session.user.id)
+      .eq('id', driverId)
       .single();
+
+    if (!profile) {
+      return NextResponse.json({ error: 'Driver not found' }, { status: 404 });
+    }
 
     if (profile?.role !== 'driver') {
       return NextResponse.json({ error: 'Only drivers can access this endpoint' }, { status: 403 });
     }
 
-    // Parse request body
-    const body = await request.json();
+    // Extract availability data from request body
     const { available, latitude, longitude } = body;
 
     if (typeof available !== 'boolean') {
@@ -137,7 +109,7 @@ export async function POST(request: Request) {
 
     // Update driver availability
     const updateData: any = {
-      driver_id: session.user.id,
+      driver_id: driverId,
       available,
       last_active: new Date().toISOString()
     };
@@ -148,7 +120,7 @@ export async function POST(request: Request) {
       updateData.longitude = longitude;
     }
 
-    const { data: updatedAvailability, error } = await supabase
+    const { data: updatedAvailability, error } = await supabaseAdmin
       .from('driver_availability')
       .upsert(updateData)
       .select()

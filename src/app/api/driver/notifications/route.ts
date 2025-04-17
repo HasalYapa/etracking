@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
-import { createServerClient } from '@supabase/ssr';
 
 // Create a Supabase client with service role key to bypass RLS
 const supabaseUrl = 'https://slujerwtublzuxtzdtyw.supabase.co';
@@ -13,49 +12,35 @@ const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 // GET driver notifications
 export async function GET(request: Request) {
   try {
-    // Get the authenticated user
-    const cookieStore = cookies();
-    const supabase = createServerClient(
-      supabaseUrl,
-      supabaseServiceKey,
-      {
-        cookies: {
-          get(name: string) {
-            return cookieStore.get(name)?.value;
-          },
-          set(name: string, value: string, options: any) {
-            cookieStore.set(name, value);
-          },
-          remove(name: string, options: any) {
-            cookieStore.delete(name);
-          },
-        },
-      }
-    );
-    const { data: { session } } = await supabase.auth.getSession();
+    // Get the driver ID from the query parameters
+    const { searchParams } = new URL(request.url);
+    const driverId = searchParams.get('driverId');
 
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!driverId) {
+      return NextResponse.json({ error: 'Driver ID is required' }, { status: 400 });
     }
 
     // Get user profile to determine role
-    const { data: profile } = await supabase
+    const { data: profile } = await supabaseAdmin
       .from('profiles')
       .select('role')
-      .eq('id', session.user.id)
+      .eq('id', driverId)
       .single();
+
+    if (!profile) {
+      return NextResponse.json({ error: 'Driver not found' }, { status: 404 });
+    }
 
     if (profile?.role !== 'driver') {
       return NextResponse.json({ error: 'Only drivers can access this endpoint' }, { status: 403 });
     }
 
     // Get query parameters
-    const { searchParams } = new URL(request.url);
     const unreadOnly = searchParams.get('unread') === 'true';
     const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : 10;
 
     // Build the query
-    let query = supabase
+    let query = supabaseAdmin
       .from('driver_notifications')
       .select(`
         *,
@@ -68,7 +53,7 @@ export async function GET(request: Request) {
           customer:customers(name, phone, address)
         )
       `)
-      .eq('driver_id', session.user.id)
+      .eq('driver_id', driverId)
       .order('created_at', { ascending: false })
       .limit(limit);
 
@@ -95,56 +80,39 @@ export async function GET(request: Request) {
 // Update notification status (mark as read, accept/reject assignment)
 export async function POST(request: Request) {
   try {
-    // Get the authenticated user
-    const cookieStore = cookies();
-    const supabase = createServerClient(
-      supabaseUrl,
-      supabaseServiceKey,
-      {
-        cookies: {
-          get(name: string) {
-            return cookieStore.get(name)?.value;
-          },
-          set(name: string, value: string, options: any) {
-            cookieStore.set(name, value);
-          },
-          remove(name: string, options: any) {
-            cookieStore.delete(name);
-          },
-        },
-      }
-    );
-    const { data: { session } } = await supabase.auth.getSession();
+    // Parse request body
+    const body = await request.json();
+    const { driverId, notificationId, action, read } = body;
 
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!driverId) {
+      return NextResponse.json({ error: 'Driver ID is required' }, { status: 400 });
     }
 
     // Get user profile to determine role
-    const { data: profile } = await supabase
+    const { data: profile } = await supabaseAdmin
       .from('profiles')
       .select('role')
-      .eq('id', session.user.id)
+      .eq('id', driverId)
       .single();
+
+    if (!profile) {
+      return NextResponse.json({ error: 'Driver not found' }, { status: 404 });
+    }
 
     if (profile?.role !== 'driver') {
       return NextResponse.json({ error: 'Only drivers can access this endpoint' }, { status: 403 });
     }
-
-    // Parse request body
-    const body = await request.json();
-    const { notificationId, action, read } = body;
 
     if (!notificationId) {
       return NextResponse.json({ error: 'Notification ID is required' }, { status: 400 });
     }
 
     // Get the notification to verify it belongs to this driver
-    const { data: notification, error: notificationError } = await supabase
+    const { data: notification, error: notificationError } = await supabaseAdmin
       .from('driver_notifications')
       .select('*, order:orders(*)')
       .eq('id', notificationId)
-      .eq('driver_id', session.user.id)
+      .eq('driver_id', driverId)
       .single();
 
     if (notificationError) {
@@ -168,7 +136,7 @@ export async function POST(request: Request) {
 
       // If accepting, update the order status to picked_up
       if (action === 'accept') {
-        const { error: orderError } = await supabase
+        const { error: orderError } = await supabaseAdmin
           .from('orders')
           .update({
             status: 'picked_up',
@@ -182,13 +150,13 @@ export async function POST(request: Request) {
         }
 
         // Create an order history record
-        const { error: historyError } = await supabase
+        const { error: historyError } = await supabaseAdmin
           .from('order_history')
           .insert({
             order_id: notification.order_id,
             status: 'picked_up',
             notes: 'Driver accepted the order',
-            updated_by: session.user.id
+            updated_by: driverId
           });
 
         if (historyError) {
@@ -197,7 +165,7 @@ export async function POST(request: Request) {
         }
       } else if (action === 'reject') {
         // If rejecting, update the order status back to pending and remove driver assignment
-        const { error: orderError } = await supabase
+        const { error: orderError } = await supabaseAdmin
           .from('orders')
           .update({
             status: 'pending',
@@ -212,13 +180,13 @@ export async function POST(request: Request) {
         }
 
         // Create an order history record
-        const { error: historyError } = await supabase
+        const { error: historyError } = await supabaseAdmin
           .from('order_history')
           .insert({
             order_id: notification.order_id,
             status: 'pending',
             notes: 'Driver rejected the order',
-            updated_by: session.user.id
+            updated_by: driverId
           });
 
         if (historyError) {
@@ -229,7 +197,7 @@ export async function POST(request: Request) {
     }
 
     // Update the notification
-    const { data: updatedNotification, error } = await supabase
+    const { data: updatedNotification, error } = await supabaseAdmin
       .from('driver_notifications')
       .update(updateData)
       .eq('id', notificationId)

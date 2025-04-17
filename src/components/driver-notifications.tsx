@@ -44,7 +44,7 @@ export default function DriverNotifications({ driverId, onAccept, onReject }: Dr
     const fetchNotifications = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`/api/driver/notifications?unread=true`);
+        const response = await fetch(`/api/driver/notifications?driverId=${driverId}&unread=true`);
         const data = await response.json();
 
         if (data.error) {
@@ -90,6 +90,7 @@ export default function DriverNotifications({ driverId, onAccept, onReject }: Dr
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          driverId,
           notificationId,
           action,
           read: true,
@@ -131,6 +132,7 @@ export default function DriverNotifications({ driverId, onAccept, onReject }: Dr
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          driverId,
           notificationId,
           read: true,
         }),

@@ -116,9 +116,11 @@ export default function MinimalShopPage() {
   // Fetch available drivers
   const fetchAvailableDrivers = async () => {
     try {
+      if (!shopOwnerId) return;
+
       setLoadingDrivers(true);
 
-      const response = await fetch('/api/driver/find-available');
+      const response = await fetch(`/api/driver/find-available?shopOwnerId=${shopOwnerId}`);
       const data = await response.json();
 
       if (data.error) {
