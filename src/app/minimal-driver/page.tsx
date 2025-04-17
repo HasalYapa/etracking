@@ -528,7 +528,27 @@ export default function MinimalDriverPage() {
         if (!orderByIdError && orderByIdData) {
           console.log('MinimalDriverPage: Found order by ID from QR code:', orderByIdData);
 
-          // Update the order status to in_transit
+          // First, try to create an order history entry directly
+          console.log('MinimalDriverPage: Testing direct order history creation...');
+          const historyResponse = await fetch('/api/direct-order-history', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              orderId: orderByIdData.id,
+              status: 'in_transit',
+              driverId: profile.id,
+              latitude,
+              longitude,
+            }),
+          });
+
+          const historyResult = await historyResponse.json();
+          console.log('MinimalDriverPage: Direct history creation result:', historyResult);
+
+          // Now update the order status
+          console.log('MinimalDriverPage: Updating order status...');
           const response = await fetch('/api/update-order-status', {
             method: 'POST',
             headers: {
@@ -597,7 +617,27 @@ export default function MinimalDriverPage() {
 
         console.log('MinimalDriverPage: Found order by ID:', orderByIdData);
 
-        // Update the order status to in_transit
+        // First, try to create an order history entry directly
+        console.log('MinimalDriverPage: Testing direct order history creation...');
+        const historyResponse = await fetch('/api/direct-order-history', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            orderId: orderByIdData.id,
+            status: 'in_transit',
+            driverId: profile.id,
+            latitude,
+            longitude,
+          }),
+        });
+
+        const historyResult = await historyResponse.json();
+        console.log('MinimalDriverPage: Direct history creation result:', historyResult);
+
+        // Now update the order status
+        console.log('MinimalDriverPage: Updating order status...');
         const response = await fetch('/api/update-order-status', {
           method: 'POST',
           headers: {
@@ -632,7 +672,27 @@ export default function MinimalDriverPage() {
 
       console.log('MinimalDriverPage: Found order by tracking number:', orderData);
 
-      // Update the order status to in_transit
+      // First, try to create an order history entry directly
+      console.log('MinimalDriverPage: Testing direct order history creation...');
+      const historyResponse = await fetch('/api/direct-order-history', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          orderId: orderData.id,
+          status: 'in_transit',
+          driverId: profile.id,
+          latitude,
+          longitude,
+        }),
+      });
+
+      const historyResult = await historyResponse.json();
+      console.log('MinimalDriverPage: Direct history creation result:', historyResult);
+
+      // Now update the order status
+      console.log('MinimalDriverPage: Updating order status...');
       const response = await fetch('/api/update-order-status', {
         method: 'POST',
         headers: {
@@ -685,7 +745,27 @@ export default function MinimalDriverPage() {
         longitude = currentLocation.lng;
       }
 
-      // Use the API to update the order status
+      // First, try to create an order history entry directly
+      console.log('MinimalDriverPage: Testing direct order history creation...');
+      const historyResponse = await fetch('/api/direct-order-history', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          orderId,
+          status: newStatus,
+          driverId: profile.id,
+          latitude,
+          longitude,
+        }),
+      });
+
+      const historyResult = await historyResponse.json();
+      console.log('MinimalDriverPage: Direct history creation result:', historyResult);
+
+      // Now use the API to update the order status
+      console.log('MinimalDriverPage: Updating order status...');
       const response = await fetch('/api/update-order-status', {
         method: 'POST',
         headers: {
