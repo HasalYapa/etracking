@@ -5,7 +5,7 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import * as turf from '@turf/turf';
 import { ToastContainer, toast } from 'react-toastify';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase-singleton';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';

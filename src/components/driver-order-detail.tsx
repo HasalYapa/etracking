@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { MapPin, Phone, User, Clock, Package, Truck, CheckCheck } from 'lucide-react';
 import DriverOrderProgress from '@/components/driver-order-progress';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase-singleton';
 
 interface DriverOrderDetailProps {
   orderId: string;

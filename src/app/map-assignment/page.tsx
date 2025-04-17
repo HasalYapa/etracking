@@ -5,21 +5,15 @@ import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import RealTimeClock from '@/components/real-time-clock';
 import LogoPlaceholder from '@/components/logo-placeholder';
-import { supabase } from '@/lib/supabase';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 
-// Import CSS for Leaflet and Toast
-import 'leaflet/dist/leaflet.css';
-import 'react-toastify/dist/ReactToastify.css';
+// Import CSS in globals.css instead
 
-// Dynamically import the MapAssignment component to avoid SSR issues with Leaflet
-const MapAssignment = dynamic(() => import('@/components/map-assignment'), {
-  ssr: false,
-  loading: () => (
-    <div className="flex items-center justify-center h-96">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-    </div>
-  ),
-});
+// Dynamically import the MapContainer component to avoid SSR issues with Leaflet
+const MapComponent = dynamic(
+  () => import('@/components/simple-map-component'),
+  { ssr: false }
+);
 
 export default function MapAssignmentPage() {
   const [user, setUser] = useState<any>(null);
@@ -27,34 +21,21 @@ export default function MapAssignmentPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Create Supabase client
+  const supabase = createClientComponentClient();
+
   // Check authentication on component mount
   useEffect(() => {
-    let isMounted = true;
-
     const getSession = async () => {
       try {
         console.log('MapAssignmentPage: Starting authentication check...');
 
-        // Try to get the session directly from Supabase
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-
-        if (sessionError) {
-          console.error('MapAssignmentPage: Session error:', sessionError);
-          throw sessionError;
-        }
+        // Get session using auth helpers
+        const { data: { session } } = await supabase.auth.getSession();
 
         if (!session) {
           console.log('MapAssignmentPage: No active session found');
           setError('No active session. Please log in.');
-          setLoading(false);
-          return;
-        }
-
-        console.log('MapAssignmentPage: Session found, getting user...');
-
-        if (!session.user) {
-          console.log('MapAssignmentPage: No user in session');
-          setError('No user found in session. Please log in again.');
           setLoading(false);
           return;
         }
@@ -71,47 +52,26 @@ export default function MapAssignmentPage() {
         if (profileError) {
           console.error('MapAssignmentPage: Error fetching profile:', profileError);
           setError('Error fetching profile. Please try again.');
-          setLoading(false);
-          return;
         } else {
-          console.log('MapAssignmentPage: Profile fetched:', profileData);
           setProfile(profileData);
-
-          // Verify this is an admin or shop owner
-          if (profileData.role !== 'admin' && profileData.role !== 'shop_owner') {
-            console.log('MapAssignmentPage: User is not authorized:', profileData.role);
-            setError('Access denied. This page is for admins and shop owners only.');
-            setLoading(false);
-            return;
-          }
         }
       } catch (err: any) {
         console.error('MapAssignmentPage: Error in authentication flow:', err);
         setError(err.message);
       } finally {
-        if (isMounted) {
-          console.log('MapAssignmentPage: Setting loading to false');
-          setLoading(false);
-        }
+        setLoading(false);
       }
     };
 
     getSession();
-
-    // Cleanup function to prevent state updates after unmount
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  }, [supabase]);
 
   const handleSignOut = async () => {
     try {
-      console.log('MapAssignmentPage: Signing out...');
       await supabase.auth.signOut();
-      console.log('MapAssignmentPage: Sign out successful, redirecting to login page');
       window.location.href = '/';
     } catch (err) {
-      console.error('MapAssignmentPage: Error signing out:', err);
+      console.error('Error signing out:', err);
     }
   };
 
@@ -183,8 +143,10 @@ export default function MapAssignmentPage() {
                     Drag and drop orders onto driver markers to assign them. The system will calculate the distance and estimated cost automatically.
                   </p>
 
-                  {/* Map Assignment Component */}
-                  <MapAssignment />
+                  {/* Map Component */}
+                  <div style={{ height: "500px", width: "100%" }}>
+                    <MapComponent />
+                  </div>
                 </div>
               </div>
             </div>
