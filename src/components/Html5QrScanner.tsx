@@ -85,17 +85,31 @@ export default function Html5QRScanner({ onScan, onError }: Html5QRScannerProps)
         console.log('Not valid JSON, trying other formats:', jsonErr);
       }
 
-      // Try pipe-delimited format
-      const parts = data.split('|');
+      // Try pipe-delimited format (our preferred format)
+      try {
+        const cleanData = data.trim();
+        console.log('Trying pipe-delimited format with:', cleanData);
+        const parts = cleanData.split('|');
 
-      if (parts.length >= 2) {
-        const trackingNumber = parts[0];
-        const location = parts[1];
-        const driverPhone = parts.length > 2 ? parts[2] : undefined;
+        if (parts.length >= 2) {
+          const trackingNumber = parts[0].trim();
+          const location = parts[1].trim();
+          const orderId = parts.length > 2 ? parts[2].trim() : undefined;
 
-        console.log('Parsed as pipe-delimited:', { trackingNumber, location, driverPhone });
-        return { trackingNumber, location, driverPhone };
-      } else if (data.startsWith('ET')) {
+          console.log('Successfully parsed as pipe-delimited:', { trackingNumber, location, orderId });
+          return {
+            trackingNumber,
+            location,
+            driverPhone: undefined,
+            orderId // Store the order ID if available
+          };
+        }
+      } catch (pipeErr) {
+        console.log('Error parsing pipe-delimited format:', pipeErr);
+      }
+
+      // Try tracking number only format
+      if (data.startsWith('ET')) {
         // If it's just a tracking number (note: removed hyphen requirement)
         console.log('Parsed as tracking number only:', data);
         return { trackingNumber: data, location: 'Scanned Location', driverPhone: undefined };

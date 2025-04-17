@@ -434,7 +434,7 @@ export default function MinimalDriverPage() {
   };
 
   // Handle QR code scan
-  const handleScan = async (data: { trackingNumber: string; location: string; driverPhone?: string }) => {
+  const handleScan = async (data: { trackingNumber: string; location: string; driverPhone?: string; orderId?: string }) => {
     console.log('MinimalDriverPage: QR code scanned with data:', data);
     try {
       setScanResult(data);
@@ -456,6 +456,60 @@ export default function MinimalDriverPage() {
 
       // Show processing message
       setScanSuccess('Processing scan... Please wait.');
+
+      // If we have an orderId directly from the QR code, use it first
+      if (data.orderId) {
+        console.log('MinimalDriverPage: Using order ID directly from QR code:', data.orderId);
+
+        // Try to find the order by the provided order ID
+        const { data: orderByIdData, error: orderByIdError } = await supabase
+          .from('orders')
+          .select('*')
+          .eq('id', data.orderId)
+          .single();
+
+        if (!orderByIdError && orderByIdData) {
+          console.log('MinimalDriverPage: Found order by ID from QR code:', orderByIdData);
+
+          // Update the order status to in_transit
+          const response = await fetch('/api/update-order-status', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              orderId: orderByIdData.id,
+              status: 'in_transit',
+              driverId: profile.id,
+              latitude,
+              longitude,
+            }),
+          });
+
+          const result = await response.json();
+
+          if (!response.ok) {
+            throw new Error(result.error || 'Failed to update order status');
+          }
+
+          // Update success message
+          setScanSuccess(`Successfully updated order status for order ID: ${orderByIdData.id}`);
+
+          // Refresh the assignments list
+          await loadDriverAssignments(profile.id);
+
+          // Close the scanner after a delay
+          setTimeout(() => {
+            setScannerOpen(false);
+            setScanSuccess(null);
+          }, 3000);
+
+          return;
+        } else {
+          console.error('MinimalDriverPage: Error finding order by ID from QR code:', orderByIdError);
+          // Continue to try by tracking number
+        }
+      }
 
       // Clean up tracking number if needed
       const trackingNumber = data.trackingNumber.trim();
@@ -820,8 +874,11 @@ export default function MinimalDriverPage() {
                     <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
                       <h3 className="font-medium text-gray-800 mb-2">Scan Result:</h3>
                       <div className="space-y-1 text-sm">
-                        <p><strong>Order ID:</strong> {scanResult.trackingNumber}</p>
+                        <p><strong>Tracking Number:</strong> {scanResult.trackingNumber}</p>
                         <p><strong>Dispatch Location:</strong> {scanResult.location}</p>
+                        {scanResult.orderId && (
+                          <p><strong>Order ID:</strong> {scanResult.orderId}</p>
+                        )}
                         {scanResult.driverPhone && (
                           <p><strong>Driver Contact:</strong> {scanResult.driverPhone}</p>
                         )}

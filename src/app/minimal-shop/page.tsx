@@ -123,13 +123,10 @@ export default function MinimalShopPage() {
         throw new Error(data.error || 'Failed to create order');
       }
 
-      // Generate QR code for the driver
-      const qrData = JSON.stringify({
-        tracking_number: formData.tracking_number,
-        customer_name: formData.customer_name,
-        delivery_address: formData.delivery_address,
-        order_id: data.order.id
-      });
+      // Generate QR code for the driver using a simpler format
+      // Format: tracking_number|delivery_address|order_id
+      const qrData = `${formData.tracking_number}|${formData.delivery_address || 'Unknown'}|${data.order.id}`;
+      console.log('Generated QR code data for new order:', qrData);
 
       setQRCodeData(qrData);
       setShowQRCode(true);
@@ -172,12 +169,10 @@ export default function MinimalShopPage() {
   };
 
   const generateQRCode = (order: any) => {
-    const qrData = JSON.stringify({
-      tracking_number: order.tracking_number,
-      customer_name: order.customer_name,
-      delivery_address: order.delivery_address,
-      order_id: order.id
-    });
+    // Use a simpler format that's easier to parse
+    // Format: tracking_number|delivery_address|order_id
+    const qrData = `${order.tracking_number}|${order.delivery_address || 'Unknown'}|${order.id}`;
+    console.log('Generated QR code data:', qrData);
 
     setQRCodeData(qrData);
     setShowQRCode(true);
@@ -611,21 +606,72 @@ export default function MinimalShopPage() {
                 <button
                   onClick={() => {
                     // Download QR code as image
-                    const canvas = document.getElementById('shop-qr-code')?.querySelector('canvas');
-                    if (canvas) {
-                      const pngUrl = canvas
-                        .toDataURL('image/png')
-                        .replace('image/png', 'image/octet-stream');
+                    try {
+                      console.log('Attempting to download QR code...');
+                      // First try to get the canvas directly
+                      let canvas = document.getElementById('shop-qr-code')?.querySelector('canvas');
 
-                      // Create a temporary link and trigger download
-                      const downloadLink = document.createElement('a');
-                      downloadLink.href = pngUrl;
-                      downloadLink.download = `tracking-qr-code.png`;
-                      document.body.appendChild(downloadLink);
-                      downloadLink.click();
-                      document.body.removeChild(downloadLink);
-                    } else {
-                      alert('Could not generate download. Please try again.');
+                      // If that fails, try to create a canvas from the SVG
+                      if (!canvas) {
+                        console.log('Canvas not found directly, creating from SVG...');
+                        const svg = document.getElementById('shop-qr-code');
+                        if (svg) {
+                          // Create a canvas and draw the SVG on it
+                          canvas = document.createElement('canvas');
+                          canvas.width = 500;
+                          canvas.height = 500;
+                          const ctx = canvas.getContext('2d');
+
+                          // Create a temporary image from the SVG
+                          const img = new Image();
+                          const svgData = new XMLSerializer().serializeToString(svg);
+                          const svgBlob = new Blob([svgData], {type: 'image/svg+xml;charset=utf-8'});
+                          const url = URL.createObjectURL(svgBlob);
+
+                          // When the image loads, draw it on the canvas and trigger download
+                          img.onload = () => {
+                            if (ctx) {
+                              ctx.drawImage(img, 0, 0, 500, 500);
+                              const pngUrl = canvas.toDataURL('image/png');
+
+                              // Create a temporary link and trigger download
+                              const downloadLink = document.createElement('a');
+                              downloadLink.href = pngUrl;
+                              downloadLink.download = `tracking-qr-code.png`;
+                              document.body.appendChild(downloadLink);
+                              downloadLink.click();
+                              document.body.removeChild(downloadLink);
+
+                              // Clean up
+                              URL.revokeObjectURL(url);
+                            }
+                          };
+                          img.src = url;
+                          return; // Exit early as we're handling download in the onload callback
+                        }
+                      }
+
+                      // If we have a canvas (either found or created), use it
+                      if (canvas) {
+                        console.log('Canvas found, generating download...');
+                        const pngUrl = canvas
+                          .toDataURL('image/png')
+                          .replace('image/png', 'image/octet-stream');
+
+                        // Create a temporary link and trigger download
+                        const downloadLink = document.createElement('a');
+                        downloadLink.href = pngUrl;
+                        downloadLink.download = `tracking-qr-code.png`;
+                        document.body.appendChild(downloadLink);
+                        downloadLink.click();
+                        document.body.removeChild(downloadLink);
+                      } else {
+                        console.error('No canvas or SVG element found');
+                        alert('Could not generate download. Please try again.');
+                      }
+                    } catch (err) {
+                      console.error('Error downloading QR code:', err);
+                      alert('Error downloading QR code. Please try again.');
                     }
                   }}
                   className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm flex items-center justify-center"
@@ -638,11 +684,91 @@ export default function MinimalShopPage() {
                 <button
                   onClick={() => {
                     // Print QR code
-                    const printWindow = window.open('', '_blank');
-                    if (printWindow) {
-                      const canvas = document.getElementById('shop-qr-code')?.querySelector('canvas');
+                    try {
+                      console.log('Attempting to print QR code...');
+                      const printWindow = window.open('', '_blank');
+                      if (!printWindow) {
+                        alert('Could not open print window. Please check your popup blocker settings.');
+                        return;
+                      }
+
+                      // First try to get the canvas directly
+                      let pngUrl = '';
+                      let canvas = document.getElementById('shop-qr-code')?.querySelector('canvas');
+
+                      // If that fails, try to create a canvas from the SVG
+                      if (!canvas) {
+                        console.log('Canvas not found directly for printing, creating from SVG...');
+                        const svg = document.getElementById('shop-qr-code');
+                        if (svg) {
+                          // Get SVG data as a data URL
+                          const svgData = new XMLSerializer().serializeToString(svg);
+                          const svgBlob = new Blob([svgData], {type: 'image/svg+xml;charset=utf-8'});
+                          pngUrl = URL.createObjectURL(svgBlob);
+
+                          // Write the print document
+                          printWindow.document.write(`
+                            <html>
+                              <head>
+                                <title>Print QR Code</title>
+                                <style>
+                                  body {
+                                    font-family: Arial, sans-serif;
+                                    text-align: center;
+                                    padding: 20px;
+                                  }
+                                  .container {
+                                    max-width: 400px;
+                                    margin: 0 auto;
+                                    border: 1px solid #ccc;
+                                    padding: 20px;
+                                  }
+                                  .qr-image {
+                                    width: 250px;
+                                    height: 250px;
+                                    margin: 0 auto;
+                                  }
+                                  .instructions {
+                                    margin-top: 20px;
+                                    font-size: 14px;
+                                    text-align: left;
+                                    padding: 10px;
+                                    background-color: #f0f7ff;
+                                    border-radius: 5px;
+                                  }
+                                </style>
+                              </head>
+                              <body>
+                                <div class="container">
+                                  <h2>Driver QR Code</h2>
+                                  <img src="${pngUrl}" class="qr-image" />
+                                  <div class="instructions">
+                                    <p><strong>Driver Instructions:</strong></p>
+                                    <p>1. Scan this QR code before picking up the order</p>
+                                    <p>2. Update status as you progress with the delivery</p>
+                                  </div>
+                                </div>
+                              </body>
+                            </html>
+                          `);
+
+                          printWindow.document.close();
+                          printWindow.focus();
+
+                          // Add a slight delay to ensure the image is loaded
+                          setTimeout(() => {
+                            printWindow.print();
+                            printWindow.close();
+                            URL.revokeObjectURL(pngUrl);
+                          }, 500);
+                          return;
+                        }
+                      }
+
+                      // If we have a canvas, use it
                       if (canvas) {
-                        const pngUrl = canvas.toDataURL('image/png');
+                        console.log('Canvas found, generating print view...');
+                        pngUrl = canvas.toDataURL('image/png');
 
                         printWindow.document.write(`
                           <html>
@@ -694,8 +820,12 @@ export default function MinimalShopPage() {
                         printWindow.print();
                         printWindow.close();
                       } else {
+                        console.error('No canvas or SVG element found for printing');
                         alert('Could not generate print view. Please try again.');
                       }
+                    } catch (err) {
+                      console.error('Error printing QR code:', err);
+                      alert('Error printing QR code. Please try again.');
                     }
                   }}
                   className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-sm flex items-center justify-center"
