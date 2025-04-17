@@ -61,30 +61,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Initialize auth state
   useEffect(() => {
     console.log('AuthProvider: Initializing auth state');
-    
+
     // Get initial session
     const initializeAuth = async () => {
       try {
         setIsLoading(true);
-        
+
         // Get the current session
         const { data: { session }, error } = await supabase.auth.getSession();
-        
+
         if (error) {
           console.error('Error getting session:', error);
           setError(error.message);
           setIsLoading(false);
           return;
         }
-        
+
         if (session) {
           console.log('AuthProvider: Session found');
           setSession(session);
           setUser(session.user);
-          
-          // Fetch user profile
-          const profileData = await fetchProfile(session.user.id);
-          setProfile(profileData);
+
+          // Fetch user profile if user exists
+          if (session.user && session.user.id) {
+            const profileData = await fetchProfile(session.user.id);
+            setProfile(profileData);
+          } else {
+            console.log('AuthProvider: Session exists but no user ID found');
+          }
         } else {
           console.log('AuthProvider: No session found');
         }
@@ -95,37 +99,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsLoading(false);
       }
     };
-    
+
     initializeAuth();
-    
+
     // Set up auth state change listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('AuthProvider: Auth state changed:', event);
-        
+
         if (session) {
           setSession(session);
           setUser(session.user);
-          
-          // Fetch user profile
-          const profileData = await fetchProfile(session.user.id);
-          setProfile(profileData);
+
+          // Fetch user profile if user exists
+          if (session.user && session.user.id) {
+            const profileData = await fetchProfile(session.user.id);
+            setProfile(profileData);
+          } else {
+            console.log('AuthProvider: Session exists but no user ID found');
+          }
         } else {
           setSession(null);
           setUser(null);
           setProfile(null);
         }
-        
+
         setIsLoading(false);
       }
     );
-    
+
     // Clean up subscription on unmount
     return () => {
       subscription.unsubscribe();
     };
   }, []);
-  
+
   // Sign out function
   const signOut = async () => {
     try {
@@ -139,7 +147,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
     }
   };
-  
+
   // Context value
   const value = {
     session,
@@ -149,7 +157,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     error,
     signOut,
   };
-  
+
   return (
     <AuthContext.Provider value={value}>
       {children}

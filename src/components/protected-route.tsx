@@ -21,26 +21,26 @@ export default function ProtectedRoute({
   useEffect(() => {
     // Skip if still loading
     if (isLoading) return;
-    
+
     // If no user is logged in, redirect to login
-    if (!user) {
-      console.log('ProtectedRoute: No user found, redirecting to', redirectTo);
+    if (!user || !user.id) {
+      console.log('ProtectedRoute: No valid user found, redirecting to', redirectTo);
       router.push(redirectTo);
       return;
     }
-    
+
     // If role check is required
     if (requiredRole && profile) {
       const userRole = profile.role;
-      
+
       // Check if user has the required role
       const hasRequiredRole = Array.isArray(requiredRole)
         ? requiredRole.includes(userRole)
         : userRole === requiredRole;
-      
+
       if (!hasRequiredRole) {
         console.log(`ProtectedRoute: User role (${userRole}) doesn't match required role(s)`, requiredRole);
-        
+
         // Redirect based on user role
         if (userRole === 'shop_owner') {
           router.push('/minimal-shop');
@@ -63,7 +63,7 @@ export default function ProtectedRoute({
       </div>
     );
   }
-  
+
   // Show error state
   if (error) {
     return (
@@ -81,16 +81,16 @@ export default function ProtectedRoute({
       </div>
     );
   }
-  
+
   // If user is authenticated and has the required role, render children
   if (user && (!requiredRole || (profile && (
-    Array.isArray(requiredRole) 
-      ? requiredRole.includes(profile.role) 
+    Array.isArray(requiredRole)
+      ? requiredRole.includes(profile.role)
       : profile.role === requiredRole
   )))) {
     return <>{children}</>;
   }
-  
+
   // Default loading state while redirecting
   return (
     <div className="flex items-center justify-center min-h-screen">
