@@ -115,14 +115,53 @@ export async function GET(request: Request) {
         `)
         .limit(5);
 
-      const { data: ordersWithProfiles, error: profilesError } = await supabase
-        .from('orders')
-        .select(`
-          *,
-          shop:profiles!orders_shop_id_fkey(*),
-          driver:profiles!orders_driver_id_fkey(*)
-        `)
-        .limit(5);
+      // Use explicit join for profiles since the relationship isn't in the schema cache
+      let ordersWithProfiles;
+      let profilesError;
+
+      try {
+        // First get the orders
+        const { data: orders, error: ordersQueryError } = await supabase
+          .from('orders')
+          .select('*')
+          .limit(5);
+
+        if (ordersQueryError) throw ordersQueryError;
+
+        // Then get the profiles for each order's shop_id
+        const shopIds = [...new Set(orders.map(order => order.shop_id).filter(Boolean))];
+        const driverIds = [...new Set(orders.map(order => order.driver_id).filter(Boolean))];
+
+        // Get shop profiles
+        const { data: shopProfiles, error: shopProfilesError } = await supabase
+          .from('profiles')
+          .select('*')
+          .in('id', shopIds);
+
+        if (shopProfilesError) throw shopProfilesError;
+
+        // Get driver profiles (if any)
+        let driverProfiles = [];
+        if (driverIds.length > 0) {
+          const { data: drivers, error: driversError } = await supabase
+            .from('profiles')
+            .select('*')
+            .in('id', driverIds);
+
+          if (driversError) throw driversError;
+          driverProfiles = drivers || [];
+        }
+
+        // Combine the data
+        ordersWithProfiles = orders.map(order => ({
+          ...order,
+          shop: shopProfiles.find(profile => profile.id === order.shop_id) || null,
+          driver: driverProfiles.find(profile => profile.id === order.driver_id) || null
+        }));
+      } catch (err) {
+        console.error('Error getting profiles:', err);
+        profilesError = err;
+      }
 
       return NextResponse.json({
         success: true,
