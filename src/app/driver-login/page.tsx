@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import supabase from '@/utils/supabase-client';
+import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase-singleton';
 
 export default function DriverLogin() {
   const [email, setEmail] = useState('dumanthayapa2001@gmail.com');
@@ -10,6 +11,7 @@ export default function DriverLogin() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const router = useRouter();
 
   // Check if user is already logged in
   useEffect(() => {
@@ -18,7 +20,7 @@ export default function DriverLogin() {
         console.log('DriverLogin: Checking for existing session...');
         const { data: { session } } = await supabase.auth.getSession();
 
-        if (session) {
+        if (session && session.user) {
           console.log('DriverLogin: Session found, checking user role...');
 
           // Get user profile to check role
@@ -35,7 +37,7 @@ export default function DriverLogin() {
 
           if (profileData.role === 'driver') {
             console.log('DriverLogin: User is a driver, redirecting to driver dashboard');
-            window.location.href = '/minimal-driver';
+            router.push('/minimal-driver');
           } else {
             console.log(`DriverLogin: User is not a driver (${profileData.role}), staying on login page`);
           }
@@ -48,7 +50,7 @@ export default function DriverLogin() {
     }
 
     checkSession();
-  }, []);
+  }, [router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,56 +61,54 @@ export default function DriverLogin() {
     try {
       console.log('DriverLogin: Attempting to sign in with:', email);
 
-      console.log('DriverLogin: Using API route for login...');
-      const response = await fetch('/api/driver-login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
+      // Sign in directly with Supabase
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
       });
 
-      const result = await response.json();
-
-      if (!response.ok) {
-        console.error('DriverLogin: API login error:', result.error);
-        setError(result.error || 'Login failed');
+      if (error) {
+        console.error('DriverLogin: Login error:', error);
+        setError(error.message || 'Login failed');
         return;
       }
 
-      console.log('DriverLogin: API login successful');
-      setSuccess(`${result.message || 'Login successful'}! Redirecting...`);
-
-      // Store the session in localStorage to ensure it's available
-      if (result.session) {
-        // Store in the correct Supabase format
-        localStorage.setItem('sb-slujerwtublzuxtzdtyw-auth-token', JSON.stringify({
-          access_token: result.session.access_token,
-          refresh_token: result.session.refresh_token,
-          expires_at: Math.floor(Date.now() / 1000) + 3600
-        }));
+      if (!data.user) {
+        console.error('DriverLogin: No user returned from authentication');
+        setError('Authentication failed. Please try again.');
+        return;
       }
+
+      console.log('DriverLogin: Sign in successful:', data);
+
+      // Verify that the user has the correct role
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('role, name, email')
+        .eq('id', data.user.id)
+        .single();
+
+      if (profileError) {
+        console.error('DriverLogin: Error fetching profile:', profileError);
+        setError('Error verifying user role. Please try again.');
+        return;
+      }
+
+      if (profile.role !== 'driver') {
+        console.error(`DriverLogin: User is not a driver (${profile.role})`);
+        setError('Access denied. This login is for drivers only.');
+        await supabase.auth.signOut();
+        return;
+      }
+
+      setSuccess(`Login successful! Welcome, ${profile.name || 'Driver'}. Redirecting...`);
 
       // Force a delay to ensure session is properly established
       await new Promise(resolve => setTimeout(resolve, 1000));
 
-      // Redirect to minimal driver dashboard
+      // Redirect to minimal driver dashboard using Next.js router
       console.log('DriverLogin: Redirecting to driver dashboard');
-      try {
-        // Try multiple approaches to ensure redirection works
-        window.location.href = '/minimal-driver';
-
-        // Fallback: try after a short delay
-        setTimeout(() => {
-          window.location.replace('/minimal-driver');
-        }, 100);
-      } catch (redirectErr) {
-        console.error('DriverLogin: Error during redirect:', redirectErr);
-        // Last resort: create and click a link
-        const link = document.createElement('a');
-        link.href = '/minimal-driver';
-        link.click();
-      }
+      router.push('/minimal-driver');
     } catch (err: any) {
       console.error('DriverLogin: Unexpected error:', err);
       setError(err.message || 'An unexpected error occurred');

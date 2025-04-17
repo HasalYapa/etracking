@@ -1,21 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
-
-// Create a Supabase client
-const supabaseUrl = 'https://slujerwtublzuxtzdtyw.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsdWplcnd0dWJsenV4dHpkdHl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ2NTUzNDYsImV4cCI6MjA2MDIzMTM0Nn0.5irKk2XDrs0ItDWcnN2dOzUBT6KG3Pppg6Slh2fb4CA';
-
-const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true,
-    storageKey: 'sb-slujerwtublzuxtzdtyw-auth-token',
-  },
-});
+import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase-singleton';
 
 export default function ShopLogin() {
   const [email, setEmail] = useState('sampathyt1973@gmail.com');
@@ -23,6 +11,7 @@ export default function ShopLogin() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const router = useRouter();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,56 +22,54 @@ export default function ShopLogin() {
     try {
       console.log('Attempting to sign in with:', email);
 
-      // Use the API endpoint for login
-      const response = await fetch('/api/shop-login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
+      // Sign in directly with Supabase
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
       });
 
-      const result = await response.json();
-
-      if (!response.ok) {
-        console.error('Login error:', result.error);
-        setError(result.error || 'Login failed');
+      if (error) {
+        console.error('Login error:', error);
+        setError(error.message || 'Login failed');
         return;
       }
 
-      console.log('Sign in successful:', result);
-      setSuccess(`${result.message}. Redirecting...`);
-
-      // Store the session in localStorage to ensure it's available
-      if (result.session) {
-        // Store in the correct Supabase format
-        localStorage.setItem('sb-slujerwtublzuxtzdtyw-auth-token', JSON.stringify({
-          access_token: result.session.access_token,
-          refresh_token: result.session.refresh_token,
-          expires_at: Math.floor(Date.now() / 1000) + 3600
-        }));
+      if (!data.user) {
+        console.error('No user returned from authentication');
+        setError('Authentication failed. Please try again.');
+        return;
       }
+
+      console.log('Sign in successful:', data);
+
+      // Verify that the user has the correct role
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('role, name, email')
+        .eq('id', data.user.id)
+        .single();
+
+      if (profileError) {
+        console.error('Error fetching profile:', profileError);
+        setError('Error verifying user role. Please try again.');
+        return;
+      }
+
+      if (profile.role !== 'shop_owner') {
+        console.error(`User is not a shop owner (${profile.role})`);
+        setError('Access denied. This login is for shop owners only.');
+        await supabase.auth.signOut();
+        return;
+      }
+
+      setSuccess(`Login successful! Welcome, ${profile.name}. Redirecting...`);
 
       // Force a delay to ensure session is properly established
       await new Promise(resolve => setTimeout(resolve, 1000));
 
-      // Redirect to minimal shop dashboard
+      // Redirect to minimal shop dashboard using Next.js router
       console.log('Redirecting to minimal shop dashboard...');
-      try {
-        // Try multiple approaches to ensure redirection works
-        window.location.href = '/minimal-shop';
-
-        // Fallback: try after a short delay
-        setTimeout(() => {
-          window.location.replace('/minimal-shop');
-        }, 100);
-      } catch (redirectErr) {
-        console.error('Error during redirect:', redirectErr);
-        // Last resort: create and click a link
-        const link = document.createElement('a');
-        link.href = '/minimal-shop';
-        link.click();
-      }
+      router.push('/minimal-shop');
     } catch (err: any) {
       console.error('Unexpected error:', err);
       setError(err.message || 'An unexpected error occurred');
