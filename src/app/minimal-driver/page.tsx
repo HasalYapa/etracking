@@ -437,7 +437,6 @@ export default function MinimalDriverPage() {
   const handleScan = async (data: { trackingNumber: string; location: string; driverPhone?: string }) => {
     console.log('MinimalDriverPage: QR code scanned with data:', data);
     try {
-      console.log('QR code scanned with data:', data);
       setScanResult(data);
       setScanError(null);
       setScanSuccess(null);
@@ -458,18 +457,73 @@ export default function MinimalDriverPage() {
       // Show processing message
       setScanSuccess('Processing scan... Please wait.');
 
+      // Clean up tracking number if needed
+      const trackingNumber = data.trackingNumber.trim();
+      console.log('MinimalDriverPage: Looking for order with tracking number:', trackingNumber);
+
       // Find the order by tracking number
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
         .select('*')
-        .eq('tracking_number', data.trackingNumber)
+        .eq('tracking_number', trackingNumber)
         .single();
 
       if (orderError) {
-        console.error('Error finding order:', orderError);
-        setScanError(`Order with tracking number ${data.trackingNumber} not found.`);
+        console.error('MinimalDriverPage: Error finding order:', orderError);
+
+        // Try to find the order by ID as a fallback
+        console.log('MinimalDriverPage: Trying to find order by ID instead...');
+        const { data: orderByIdData, error: orderByIdError } = await supabase
+          .from('orders')
+          .select('*')
+          .eq('id', trackingNumber)
+          .single();
+
+        if (orderByIdError) {
+          console.error('MinimalDriverPage: Error finding order by ID:', orderByIdError);
+          setScanError(`Order with tracking number or ID ${trackingNumber} not found.`);
+          return;
+        }
+
+        console.log('MinimalDriverPage: Found order by ID:', orderByIdData);
+
+        // Update the order status to in_transit
+        const response = await fetch('/api/update-order-status', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            orderId: orderByIdData.id,
+            status: 'in_transit',
+            driverId: profile.id,
+            latitude,
+            longitude,
+          }),
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result.error || 'Failed to update order status');
+        }
+
+        // Update success message
+        setScanSuccess(`Successfully updated order status for order ID: ${orderByIdData.id}`);
+
+        // Refresh the assignments list
+        await loadDriverAssignments(profile.id);
+
+        // Close the scanner after a delay
+        setTimeout(() => {
+          setScannerOpen(false);
+          setScanSuccess(null);
+        }, 3000);
+
         return;
       }
+
+      console.log('MinimalDriverPage: Found order by tracking number:', orderData);
 
       // Update the order status to in_transit
       const response = await fetch('/api/update-order-status', {
@@ -493,7 +547,7 @@ export default function MinimalDriverPage() {
       }
 
       // Update success message
-      setScanSuccess(`Successfully updated order status for tracking number: ${data.trackingNumber}`);
+      setScanSuccess(`Successfully updated order status for tracking number: ${trackingNumber}`);
 
       // Refresh the assignments list
       await loadDriverAssignments(profile.id);
@@ -504,7 +558,7 @@ export default function MinimalDriverPage() {
         setScanSuccess(null);
       }, 3000);
     } catch (err: any) {
-      console.error('Error processing QR code:', err);
+      console.error('MinimalDriverPage: Error processing QR code:', err);
       setScanError(err.message || 'An error occurred while updating the order status');
     }
   };

@@ -22,17 +22,67 @@ export default function Html5QRScanner({ onScan, onError }: Html5QRScannerProps)
 
       // Try to parse as JSON first
       try {
-        const jsonData = JSON.parse(data);
+        // Clean up the data if it has any leading/trailing whitespace or quotes
+        const cleanData = data.trim().replace(/^['"]|['"]$/g, '');
+        console.log('Cleaned QR data:', cleanData);
+
+        const jsonData = JSON.parse(cleanData);
         console.log('Parsed as JSON:', jsonData);
+
+        // Check for different JSON formats
         if (jsonData.trackingNumber) {
           return {
             trackingNumber: jsonData.trackingNumber,
             location: jsonData.location || 'Unknown',
             driverPhone: jsonData.driverPhone
           };
+        } else if (jsonData.tracking_number) {
+          // Handle shop QR code format
+          console.log('Found tracking_number in JSON:', jsonData.tracking_number);
+          return {
+            trackingNumber: jsonData.tracking_number,
+            location: jsonData.delivery_address || jsonData.location || 'Unknown',
+            driverPhone: undefined
+          };
+        } else if (jsonData.order_id) {
+          // Another possible format
+          console.log('Found order_id in JSON:', jsonData.order_id);
+          return {
+            trackingNumber: jsonData.order_id,
+            location: jsonData.delivery_address || jsonData.location || 'Unknown',
+            driverPhone: undefined
+          };
+        } else {
+          // If we have JSON but no recognized fields, log all keys
+          console.log('JSON format not recognized. Available keys:', Object.keys(jsonData));
+
+          // Try to find any key that might be a tracking number
+          const possibleTrackingKeys = ['id', 'tracking', 'track', 'number', 'orderNumber', 'order_number'];
+          for (const key of possibleTrackingKeys) {
+            if (jsonData[key]) {
+              console.log(`Found possible tracking number in key '${key}':`, jsonData[key]);
+              return {
+                trackingNumber: jsonData[key],
+                location: jsonData.delivery_address || jsonData.location || 'Unknown',
+                driverPhone: undefined
+              };
+            }
+          }
+
+          // Last resort: use the first string value we find
+          for (const key in jsonData) {
+            if (typeof jsonData[key] === 'string' && jsonData[key].length > 0) {
+              console.log(`Using value from key '${key}' as tracking number:`, jsonData[key]);
+              return {
+                trackingNumber: jsonData[key],
+                location: 'Unknown',
+                driverPhone: undefined
+              };
+            }
+          }
         }
       } catch (jsonErr) {
-        console.log('Not valid JSON, trying pipe format');
+        console.log('Not valid JSON, trying other formats:', jsonErr);
       }
 
       // Try pipe-delimited format
@@ -45,12 +95,14 @@ export default function Html5QRScanner({ onScan, onError }: Html5QRScannerProps)
 
         console.log('Parsed as pipe-delimited:', { trackingNumber, location, driverPhone });
         return { trackingNumber, location, driverPhone };
-      } else if (data.startsWith('ET-')) {
-        // If it's just a tracking number
+      } else if (data.startsWith('ET')) {
+        // If it's just a tracking number (note: removed hyphen requirement)
         console.log('Parsed as tracking number only:', data);
         return { trackingNumber: data, location: 'Scanned Location', driverPhone: undefined };
       } else {
-        throw new Error('Invalid QR code format');
+        // Last resort - try to use the raw data
+        console.log('Using raw data as tracking number:', data);
+        return { trackingNumber: data, location: 'Unknown Location', driverPhone: undefined };
       }
     } catch (err: any) {
       console.error('Error parsing QR code:', err);
