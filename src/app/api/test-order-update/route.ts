@@ -57,8 +57,8 @@ export async function GET(request: Request) {
     const updateData = {
       status: 'in_transit',
       driver_id: effectiveDriverId,
-      updated_at: new Date().toISOString(),
-      updated_by: effectiveDriverId // Add this field for the trigger
+      updated_at: new Date().toISOString()
+      // Remove updated_by field as it doesn't exist in the orders table
     };
 
     const { data: updatedResults, error: updateError } = await supabaseAdmin

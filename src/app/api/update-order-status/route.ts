@@ -66,8 +66,8 @@ export async function POST(request: Request) {
     const updateData = {
       status,
       driver_id: effectiveDriverId, // Ensure driver is assigned
-      updated_at: new Date().toISOString(),
-      updated_by: effectiveDriverId // Add this field for the trigger
+      updated_at: new Date().toISOString()
+      // Remove updated_by field as it doesn't exist in the orders table
     };
     console.log('Update data:', updateData);
 
