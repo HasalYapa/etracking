@@ -37,8 +37,17 @@ export default function DriverLogin() {
 
           if (profileData.role === 'driver') {
             console.log('DriverLogin: User is a driver, redirecting to driver dashboard');
+            // Show loading state during redirect
+            setLoading(true);
+            setSuccess('Already logged in! Redirecting to dashboard...');
+
             // Use router.push with replace option to avoid keeping login page in history
             router.push('/minimal-driver', { replace: true });
+
+            // If for some reason the redirect doesn't happen, reset loading state after 3 seconds
+            setTimeout(() => {
+              setLoading(false);
+            }, 3000);
           } else {
             console.log(`DriverLogin: User is not a driver (${profileData.role}), staying on login page`);
           }
@@ -104,12 +113,21 @@ export default function DriverLogin() {
 
       setSuccess(`Login successful! Welcome, ${profile.name || 'Driver'}. Redirecting...`);
 
+      // Set a redirecting state to show a better loading indicator
+      setLoading(true);
+      setSuccess('Login successful! Redirecting to dashboard...');
+
       // Use the Next.js router for redirection
       console.log('DriverLogin: Redirecting to driver dashboard');
 
       // Use router.push for navigation within Next.js
       // The replace: true option ensures we don't keep the login page in history
       router.push('/minimal-driver', { replace: true });
+
+      // If for some reason the redirect doesn't happen, reset loading state after 3 seconds
+      setTimeout(() => {
+        setLoading(false);
+      }, 3000);
     } catch (err: any) {
       console.error('DriverLogin: Unexpected error:', err);
       setError(err.message || 'An unexpected error occurred');

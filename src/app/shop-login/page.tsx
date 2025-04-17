@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase-singleton';
@@ -12,6 +12,55 @@ export default function ShopLogin() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const router = useRouter();
+
+  // Check if user is already logged in
+  useEffect(() => {
+    async function checkSession() {
+      try {
+        console.log('ShopLogin: Checking for existing session...');
+        const { data: { session } } = await supabase.auth.getSession();
+
+        if (session) {
+          console.log('ShopLogin: Found existing session, checking role...');
+
+          // Verify that the user has the correct role
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('role, name')
+            .eq('id', session.user.id)
+            .single();
+
+          if (profileError) {
+            console.error('ShopLogin: Error fetching profile:', profileError);
+            return;
+          }
+
+          if (profileData.role === 'shop_owner') {
+            console.log('ShopLogin: User is a shop owner, redirecting to shop dashboard');
+            // Show loading state during redirect
+            setLoading(true);
+            setSuccess('Already logged in! Redirecting to dashboard...');
+
+            // Use router.push with replace option to avoid keeping login page in history
+            router.push('/minimal-shop', { replace: true });
+
+            // If for some reason the redirect doesn't happen, reset loading state after 3 seconds
+            setTimeout(() => {
+              setLoading(false);
+            }, 3000);
+          } else {
+            console.log(`ShopLogin: User is not a shop owner (${profileData.role}), staying on login page`);
+          }
+        } else {
+          console.log('ShopLogin: No active session found');
+        }
+      } catch (err) {
+        console.error('ShopLogin: Error checking session:', err);
+      }
+    }
+
+    checkSession();
+  }, [router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,12 +113,21 @@ export default function ShopLogin() {
 
       setSuccess(`Login successful! Welcome, ${profile.name}. Redirecting...`);
 
+      // Set a redirecting state to show a better loading indicator
+      setLoading(true);
+      setSuccess('Login successful! Redirecting to dashboard...');
+
       // Use the Next.js router for redirection
       console.log('Redirecting to minimal shop dashboard...');
 
       // Use router.push for navigation within Next.js
       // The replace: true option ensures we don't keep the login page in history
       router.push('/minimal-shop', { replace: true });
+
+      // If for some reason the redirect doesn't happen, reset loading state after 3 seconds
+      setTimeout(() => {
+        setLoading(false);
+      }, 3000);
     } catch (err: any) {
       console.error('Unexpected error:', err);
       setError(err.message || 'An unexpected error occurred');
