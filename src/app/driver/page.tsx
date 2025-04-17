@@ -2,14 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useAuth } from '../../lib/auth-context';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { OrderWithRelations } from '../../types';
 import QRCodeScanner from '../../components/qr-code-scanner';
 import { useRouter } from 'next/navigation';
+import ProtectedRoute from '@/components/protected-route';
 
-export default function DriverDashboard() {
+function DriverDashboardContent() {
   const router = useRouter();
-  const { profile, isLoading: authLoading } = useAuth();
+  const [profile, setProfile] = useState<any>(null);
   const [deliveries, setDeliveries] = useState<OrderWithRelations[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -24,6 +25,9 @@ export default function DriverDashboard() {
     delivered: 0
   });
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
+
+  // Create Supabase client
+  const supabase = createClientComponentClient();
 
   // Get current location
   useEffect(() => {
@@ -42,12 +46,33 @@ export default function DriverDashboard() {
     }
   }, []);
 
-  // Fetch orders assigned to the driver
+  // Fetch profile and orders
   useEffect(() => {
-    if (!authLoading) {
-      fetchOrders();
-    }
-  }, [authLoading]); // eslint-disable-line react-hooks/exhaustive-deps
+    const fetchProfile = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+
+        if (session?.user) {
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+
+          if (error) {
+            console.error('Error fetching profile:', error);
+          } else {
+            setProfile(data);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching profile:', err);
+      }
+    };
+
+    fetchProfile();
+    fetchOrders();
+  }, [supabase]);
 
   const updateStatus = async (id: string, newStatus: string) => {
     try {
@@ -356,5 +381,14 @@ export default function DriverDashboard() {
         )}
       </main>
     </div>
+  );
+}
+
+// Wrapper component with authentication protection
+export default function DriverDashboard() {
+  return (
+    <ProtectedRoute requiredRole="driver" redirectTo="/driver-login">
+      <DriverDashboardContent />
+    </ProtectedRoute>
   );
 }
