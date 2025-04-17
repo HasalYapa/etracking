@@ -162,7 +162,7 @@ export default function SupabaseAnalyzerPage() {
           // Add examples with explicit join conditions
           testQueries.push({
             name: `${tableName} with ${referencedTable} (correct - explicit join)`,
-            query: `.from('${tableName}').select('*, ${referencedTable}:${referencedTable}!inner(*)').eq('${fk.column_name}', 'some-id-value')`,
+            query: `.from('${tableName}').select('*, ${referencedTable}:${referencedTable}!inner(*)').eq('${fk.column_name}', '00000000-0000-0000-0000-000000000000')`,
             correct: true,
             relationship: `${tableName}.${fk.column_name} -> ${referencedTable}`,
             note: 'Uses explicit join condition that works even without schema relationships'
@@ -195,7 +195,7 @@ export default function SupabaseAnalyzerPage() {
         testQueries.push({
           name: `${sourceTable} with ${tableName} (correct - explicit join)`,
           query: `.from('${sourceTable}').select('*, ${tableName}:${tableName}!inner(*)')
-  .eq('${fk.column_name}', 'some-id-value')`,
+  .eq('${fk.column_name}', '00000000-0000-0000-0000-000000000000')`,
           correct: true,
           relationship: `${sourceTable}.${fk.column_name} -> ${tableName}`,
           note: 'Uses explicit join condition that works even without schema relationships'
@@ -415,7 +415,12 @@ export default function SupabaseAnalyzerPage() {
                     )}
                     {testError.includes('Could not find a relationship') && (
                       <p className="text-sm text-red-700 mt-2">
-                        <strong>Fix:</strong> Use explicit foreign key filters like <code className="bg-red-100 px-1">.eq('foreign_key_column', 'id_value')</code> instead of relying on schema relationships
+                        <strong>Fix:</strong> Use explicit foreign key filters like <code className="bg-red-100 px-1">.eq('foreign_key_column', '00000000-0000-0000-0000-000000000000')</code> instead of relying on schema relationships
+                      </p>
+                    )}
+                    {testError.includes('invalid input syntax for type uuid') && (
+                      <p className="text-sm text-red-700 mt-2">
+                        <strong>Fix:</strong> Use a valid UUID format like <code className="bg-red-100 px-1">'00000000-0000-0000-0000-000000000000'</code> for UUID fields
                       </p>
                     )}
                   </div>
@@ -470,11 +475,31 @@ export default function SupabaseAnalyzerPage() {
                 <p>
                   <strong>Solution:</strong> Use explicit foreign key filters instead of relying on schema relationships:
                 </p>
+                <p className="text-xs text-blue-700 mb-2">
+                  Note: For UUID fields, you must use a valid UUID format (e.g., '00000000-0000-0000-0000-000000000000').
+                </p>
                 <pre className="bg-blue-100 p-2 rounded-md mt-1">
                   <code className="text-xs font-mono">
 {`.from('orders')
   .select('*, customers:customers(*)')
-  .eq('customer_id', 'the-customer-id')`}
+  .eq('customer_id', '00000000-0000-0000-0000-000000000000')`}
+                  </code>
+                </pre>
+              </div>
+
+              <div className="pt-3 border-t border-blue-200">
+                <h3 className="font-medium mb-1">3. "invalid input syntax for type uuid"</h3>
+                <p className="mb-2">
+                  This error occurs when you try to use a string that's not in a valid UUID format for a UUID field.
+                  UUID fields require a specific format with 32 hexadecimal digits and hyphens.
+                </p>
+                <p>
+                  <strong>Solution:</strong> Use a valid UUID format for UUID fields:
+                </p>
+                <pre className="bg-blue-100 p-2 rounded-md mt-1">
+                  <code className="text-xs font-mono">
+{`.from('orders')
+  .eq('id', '00000000-0000-0000-0000-000000000000')`}
                   </code>
                 </pre>
               </div>
