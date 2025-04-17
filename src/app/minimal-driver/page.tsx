@@ -5,16 +5,10 @@ import Link from 'next/link';
 import RealTimeClock from '@/components/real-time-clock';
 import LogoPlaceholder from '@/components/logo-placeholder';
 import Html5QRScanner from '@/components/Html5QrScanner';
-import DriverNotifications from '@/components/driver-notifications';
+import EnhancedDriverNotifications from '@/components/enhanced-driver-notifications';
+import DriverOrderCard from '@/components/driver-order-card';
 import supabase from '@/utils/supabase-client';
-import { createClient } from '@supabase/supabase-js';
-
-// Create a Supabase client with service role key to bypass RLS
-const supabaseUrl = 'https://slujerwtublzuxtzdtyw.supabase.co';
-const supabaseServiceKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsdWplcnd0dWJsenV4dHpkdHl3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NDY1NTM0NiwiZXhwIjoyMDYwMjMxMzQ2fQ.mKei2DrPSguXkVouBWzsW3iqDWT2H3xvkJOnkPIkuLc';
-
-// Use service role client for admin operations
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+// Supabase client is imported from utils/supabase-client
 
 export default function MinimalDriverPage() {
   const [user, setUser] = useState<any>(null);
@@ -65,6 +59,15 @@ export default function MinimalDriverPage() {
 
   // Get current location and update periodically
   useEffect(() => {
+    // Request notification permission
+    if ('Notification' in window) {
+      if (Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+        Notification.requestPermission().then(permission => {
+          console.log('Notification permission:', permission);
+        });
+      }
+    }
+
     if (navigator.geolocation) {
       // Get initial location
       navigator.geolocation.getCurrentPosition(
@@ -937,7 +940,7 @@ export default function MinimalDriverPage() {
     setScanResult(null);
   };
 
-  const handleUpdateStatus = async (orderId: string, newStatus: string) => {
+  const handleUpdateStatus = async (orderId: string, newStatus: string, notes?: string) => {
     try {
       setLoading(true);
 
@@ -949,52 +952,18 @@ export default function MinimalDriverPage() {
         longitude = currentLocation.lng;
       }
 
-      // Use a simpler approach - just update the order directly in the database
-      console.log('MinimalDriverPage: Updating order directly in the database...');
+      // Use the driver update-order-status API
+      console.log('MinimalDriverPage: Updating order status via API...');
 
-      // First, create the order history entry manually
-      const historyData = {
-        order_id: orderId,
-        status: newStatus,
-        notes: `Status updated to ${newStatus}`,
-        updated_by: profile.id || '9155a1e2-84d0-44ec-8174-f27f8b9cc03e', // Ensure this is never null
-        created_at: new Date().toISOString()
-      };
-
-      // Make sure updated_by is not null
-      if (!historyData.updated_by) {
-        historyData.updated_by = '9155a1e2-84d0-44ec-8174-f27f8b9cc03e';
-      }
-
-      console.log('MinimalDriverPage: Creating order history entry:', historyData);
-
-      // Use the admin client to bypass RLS
-      console.log('MinimalDriverPage: Using admin client to bypass RLS');
-      const { error: historyError } = await supabaseAdmin
-        .from('order_history')
-        .insert(historyData);
-
-      if (historyError) {
-        console.error('MinimalDriverPage: Error creating order history:', historyError);
-        throw new Error(`Failed to create order history: ${historyError.message}`);
-      }
-
-      // Now update the order status
-      console.log('MinimalDriverPage: Updating order status...');
-
-      // Use the dedicated API endpoint for QR code scanning
-      console.log('MinimalDriverPage: Using scan-qr-code API endpoint');
-
-      // BEST PRACTICE: Always use the authenticated user's ID (driver ID) as the updated_by field
       // Make sure we have a valid driver ID
       if (!profile?.id) {
         console.error('MinimalDriverPage: No driver ID available, cannot proceed');
         throw new Error('No driver ID available, please log in again');
       }
 
-      console.log('MinimalDriverPage: Using driver ID for updated_by:', profile.id);
+      console.log('MinimalDriverPage: Using driver ID:', profile.id);
 
-      const response = await fetch('/api/scan-qr-code', {
+      const response = await fetch('/api/driver/update-order-status', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1002,8 +971,8 @@ export default function MinimalDriverPage() {
         body: JSON.stringify({
           orderId: orderId,
           driverId: profile.id, // This is the authenticated user's ID
-          // We don't have shopId here, but the API will handle it
           status: newStatus,
+          notes: notes, // Include any notes provided
           latitude: latitude,
           longitude: longitude
         }),
@@ -1253,15 +1222,33 @@ export default function MinimalDriverPage() {
         {/* Notifications Section */}
         {profile && profile.id && (
           <div className="mb-6">
-            <DriverNotifications
+            <EnhancedDriverNotifications
               driverId={profile.id}
               onAccept={(_notification) => {
                 // Refresh assignments after accepting
                 loadDriverAssignments(profile.id);
+
+                // Show notification
+                if (Notification.permission === 'granted') {
+                  const notification = new Notification('Order Accepted', {
+                    body: `You've accepted a new order. Check your assignments.`,
+                    icon: '/favicon.ico'
+                  });
+                  setTimeout(() => notification.close(), 5000);
+                }
               }}
-              onReject={(_notification) => {
+              onReject={(_notification, reason) => {
                 // Refresh assignments after rejecting
                 loadDriverAssignments(profile.id);
+
+                // Show notification
+                if (Notification.permission === 'granted') {
+                  const notification = new Notification('Order Rejected', {
+                    body: `You've rejected an order${reason ? ': ' + reason : ''}.`,
+                    icon: '/favicon.ico'
+                  });
+                  setTimeout(() => notification.close(), 5000);
+                }
               }}
             />
           </div>
@@ -1410,61 +1397,27 @@ export default function MinimalDriverPage() {
               <p className="text-gray-400 mt-1">Check back later for new deliveries</p>
             </div>
           ) : (
-            <div className="overflow-x-auto rounded-lg border border-gray-200">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tracking #</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Address</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {assignments
-                    .filter(order => statusFilter === 'all' || order.status === statusFilter)
-                    .map((assignment) => (
-                    <tr key={assignment.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-blue-600">{assignment.tracking_number}</td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm">
-                        {assignment.customer_name}<br />
-                        <span className="text-xs text-gray-500">{assignment.customer_phone}</span>
-                      </td>
-                      <td className="px-4 py-3 text-sm">{assignment.delivery_address}</td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full
-                          ${assignment.status === 'pending' || assignment.status === 'assigned' ? 'bg-yellow-100 text-yellow-800' :
-                            assignment.status === 'picked_up' || assignment.status === 'in_transit' ? 'bg-blue-100 text-blue-800' :
-                            assignment.status === 'delivered' ? 'bg-green-100 text-green-800' :
-                            'bg-red-100 text-red-800'}`}>
-                          {assignment.status}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm">
-                        <div className="flex space-x-2">
-                          {(assignment.status === 'pending' || assignment.status === 'assigned') && (
-                            <button
-                              onClick={() => handleUpdateStatus(assignment.id, 'in_transit')}
-                              className="px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
-                            >
-                              Pick Up
-                            </button>
-                          )}
-                          {(assignment.status === 'in_transit' || assignment.status === 'picked_up') && (
-                            <button
-                              onClick={() => handleUpdateStatus(assignment.id, 'delivered')}
-                              className="px-2 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors"
-                            >
-                              Deliver
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
+              {assignments
+                .filter(order => statusFilter === 'all' || order.status === statusFilter)
+                .map((assignment) => (
+                  <DriverOrderCard
+                    key={assignment.id}
+                    order={{
+                      id: assignment.id,
+                      tracking_number: assignment.tracking_number,
+                      status: assignment.status,
+                      delivery_address: assignment.delivery_address,
+                      delivery_notes: assignment.delivery_notes,
+                      customer_name: assignment.customer_name,
+                      customer_phone: assignment.customer_phone,
+                      created_at: assignment.created_at
+                    }}
+                    onUpdateStatus={async (orderId, newStatus, notes) => {
+                      await handleUpdateStatus(orderId, newStatus, notes);
+                    }}
+                  />
+                ))}
             </div>
           )}
         </div>

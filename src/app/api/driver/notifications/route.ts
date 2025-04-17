@@ -82,7 +82,7 @@ export async function POST(request: Request) {
   try {
     // Parse request body
     const body = await request.json();
-    const { driverId, notificationId, action } = body;
+    const { driverId, notificationId, action, rejectionReason } = body;
 
     if (!driverId) {
       return NextResponse.json({ error: 'Driver ID is required' }, { status: 400 });
@@ -180,13 +180,15 @@ export async function POST(request: Request) {
           return NextResponse.json({ error: orderError.message }, { status: 500 });
         }
 
-        // Create an order history record
+        // Create an order history record with rejection reason if provided
         const { error: historyError } = await supabaseAdmin
           .from('order_history')
           .insert({
             order_id: notification.order_id,
             status: 'pending',
-            notes: 'Driver rejected the order',
+            notes: rejectionReason
+              ? `Driver rejected the order: ${rejectionReason}`
+              : 'Driver rejected the order',
             updated_by: driverId
           });
 
