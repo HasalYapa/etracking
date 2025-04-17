@@ -2,23 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { createClient } from '@supabase/supabase-js';
 import RealTimeClock from '@/components/real-time-clock';
 import LogoPlaceholder from '@/components/logo-placeholder';
 import Html5QRScanner from '@/components/Html5QrScanner';
-
-// Create a Supabase client
-const supabaseUrl = 'https://slujerwtublzuxtzdtyw.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsdWplcnd0dWJsenV4dHpkdHl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ2NTUzNDYsImV4cCI6MjA2MDIzMTM0Nn0.5irKk2XDrs0ItDWcnN2dOzUBT6KG3Pppg6Slh2fb4CA';
-
-const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true,
-    storageKey: 'supabase.auth.token',
-  },
-});
+import supabase from '@/utils/supabase-client';
 
 export default function MinimalDriverPage() {
   const [user, setUser] = useState<any>(null);
@@ -60,23 +47,29 @@ export default function MinimalDriverPage() {
     async function getSession() {
       try {
         setLoading(true);
+        console.log('MinimalDriverPage: Starting authentication check...');
 
         // Get session
+        console.log('MinimalDriverPage: Fetching session...');
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
         if (sessionError) {
+          console.error('MinimalDriverPage: Session error:', sessionError);
           throw sessionError;
         }
 
         if (!session) {
+          console.log('MinimalDriverPage: No active session found');
           setError('No active session. Please log in.');
+          setLoading(false);
           return;
         }
 
-        console.log('Session found:', session);
+        console.log('MinimalDriverPage: Session found:', session.user.id);
         setUser(session.user);
 
         // Get profile
+        console.log('MinimalDriverPage: Fetching profile...');
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select('*')
@@ -84,26 +77,32 @@ export default function MinimalDriverPage() {
           .single();
 
         if (profileError) {
-          console.error('Error fetching profile:', profileError);
+          console.error('MinimalDriverPage: Error fetching profile:', profileError);
           setError('Error fetching profile. Please try again.');
+          setLoading(false);
           return;
         } else {
-          console.log('Profile fetched:', profileData);
+          console.log('MinimalDriverPage: Profile fetched:', profileData);
           setProfile(profileData);
 
           // Verify this is a driver
           if (profileData.role !== 'driver') {
+            console.log('MinimalDriverPage: User is not a driver:', profileData.role);
             setError('Access denied. This dashboard is for drivers only.');
+            setLoading(false);
             return;
           }
 
           // Load assignments for this driver
+          console.log('MinimalDriverPage: Loading driver assignments...');
           await loadDriverAssignments(profileData.id);
+          console.log('MinimalDriverPage: Assignments loaded successfully');
         }
       } catch (err: any) {
-        console.error('Error:', err);
+        console.error('MinimalDriverPage: Error in authentication flow:', err);
         setError(err.message);
       } finally {
+        console.log('MinimalDriverPage: Setting loading to false');
         setLoading(false);
       }
     }
@@ -113,9 +112,54 @@ export default function MinimalDriverPage() {
 
   const loadDriverAssignments = async (driverId: string) => {
     try {
-      console.log('Loading assignments for driver ID:', driverId);
+      console.log('MinimalDriverPage: Loading assignments for driver ID:', driverId);
 
-      // Fetch real orders from Supabase
+      // Try using the API route instead of direct Supabase call
+      try {
+        console.log('MinimalDriverPage: Fetching assignments via API route...');
+        const response = await fetch(`/api/driver-assignments?driverId=${driverId}`);
+
+        if (!response.ok) {
+          throw new Error(`API returned status: ${response.status}`);
+        }
+
+        const result = await response.json();
+
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to fetch assignments');
+        }
+
+        const ordersData = result.orders;
+        console.log(`MinimalDriverPage: API found ${ordersData?.length || 0} orders for driver ID ${driverId}`);
+
+        // Transform the data to match the expected format
+        const driverAssignments = ordersData?.map(order => ({
+          ...order,
+          customer_name: order.customers?.name || 'Unknown',
+          customer_phone: order.customers?.phone || 'N/A',
+          items: order.items || order.delivery_notes || 'No items specified',
+        })) || [];
+
+        setAssignments(driverAssignments);
+
+        // Calculate stats
+        setStats({
+          total: driverAssignments.length,
+          pending: driverAssignments.filter(order => order.status === 'assigned' || order.status === 'pending').length,
+          in_transit: driverAssignments.filter(order =>
+            order.status === 'in_transit' ||
+            order.status === 'picked_up'
+          ).length,
+          delivered: driverAssignments.filter(order => order.status === 'delivered').length
+        });
+
+        return; // Exit if API call was successful
+      } catch (apiError) {
+        console.error('MinimalDriverPage: API route failed, falling back to direct Supabase call:', apiError);
+      }
+
+      // Fallback: Fetch directly from Supabase
+      console.log('MinimalDriverPage: Fetching assignments directly from Supabase...');
       const { data: ordersData, error } = await supabase
         .from('orders')
         .select(`
@@ -126,12 +170,11 @@ export default function MinimalDriverPage() {
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching orders:', error);
+        console.error('MinimalDriverPage: Error fetching orders from Supabase:', error);
         throw error;
       }
 
-      console.log(`Found ${ordersData?.length || 0} orders for driver ID ${driverId}`);
-      console.log('Orders data:', ordersData);
+      console.log(`MinimalDriverPage: Supabase found ${ordersData?.length || 0} orders for driver ID ${driverId}`);
 
       // Transform the data to match the expected format
       const driverAssignments = ordersData?.map(order => ({
@@ -154,21 +197,24 @@ export default function MinimalDriverPage() {
         delivered: driverAssignments.filter(order => order.status === 'delivered').length
       });
     } catch (err) {
-      console.error('Error loading driver assignments:', err);
+      console.error('MinimalDriverPage: Error loading driver assignments:', err);
     }
   };
 
   const handleSignOut = async () => {
     try {
+      console.log('MinimalDriverPage: Signing out...');
       await supabase.auth.signOut();
+      console.log('MinimalDriverPage: Sign out successful, redirecting to login page');
       window.location.href = '/driver-login';
     } catch (err) {
-      console.error('Error signing out:', err);
+      console.error('MinimalDriverPage: Error signing out:', err);
     }
   };
 
   // Handle QR code scan
   const handleScan = async (data: { trackingNumber: string; location: string; driverPhone?: string }) => {
+    console.log('MinimalDriverPage: QR code scanned with data:', data);
     try {
       console.log('QR code scanned with data:', data);
       setScanResult(data);
@@ -304,6 +350,12 @@ export default function MinimalDriverPage() {
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
           <p className="text-gray-600">Loading...</p>
+          <button
+            onClick={() => window.location.href = '/driver-login'}
+            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+          >
+            Return to Login
+          </button>
         </div>
       </div>
     );

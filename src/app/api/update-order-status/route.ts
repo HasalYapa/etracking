@@ -1,11 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-// Create a Supabase client
-const supabaseUrl = 'https://slujerwtublzuxtzdtyw.supabase.co';
-const supabaseServiceKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsdWplcnd0dWJsenV4dHpkdHl3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NDY1NTM0NiwiZXhwIjoyMDYwMjMxMzQ2fQ.Oi-qL8YYgYONxGEDGYEDgRdKvJXW0LYVpNYwUJTv0Zc';
-
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+import supabase from '@/utils/supabase-service';
 
 export async function POST(request: Request) {
   try {
@@ -13,9 +7,9 @@ export async function POST(request: Request) {
     const { orderId, status, driverId, latitude, longitude } = body;
 
     if (!orderId || !status || !driverId) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Order ID, status, and driver ID are required' 
+      return NextResponse.json({
+        success: false,
+        error: 'Order ID, status, and driver ID are required'
       }, { status: 400 });
     }
 

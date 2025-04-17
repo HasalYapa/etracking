@@ -1,21 +1,8 @@
 'use client';
 
-import { useState } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-
-// Create a Supabase client
-const supabaseUrl = 'https://slujerwtublzuxtzdtyw.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsdWplcnd0dWJsenV4dHpkdHl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ2NTUzNDYsImV4cCI6MjA2MDIzMTM0Nn0.5irKk2XDrs0ItDWcnN2dOzUBT6KG3Pppg6Slh2fb4CA';
-
-const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true,
-    storageKey: 'supabase.auth.token',
-  },
-});
+import supabase from '@/utils/supabase-client';
 
 export default function DriverLogin() {
   const [email, setEmail] = useState('dimanthayapa2001@gmail.com');
@@ -24,6 +11,45 @@ export default function DriverLogin() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
+  // Check if user is already logged in
+  useEffect(() => {
+    async function checkSession() {
+      try {
+        console.log('DriverLogin: Checking for existing session...');
+        const { data: { session } } = await supabase.auth.getSession();
+
+        if (session) {
+          console.log('DriverLogin: Session found, checking user role...');
+
+          // Get user profile to check role
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', session.user.id)
+            .single();
+
+          if (profileError) {
+            console.error('DriverLogin: Error fetching profile:', profileError);
+            return;
+          }
+
+          if (profileData.role === 'driver') {
+            console.log('DriverLogin: User is a driver, redirecting to driver dashboard');
+            window.location.href = '/minimal-driver';
+          } else {
+            console.log(`DriverLogin: User is not a driver (${profileData.role}), staying on login page`);
+          }
+        } else {
+          console.log('DriverLogin: No active session found');
+        }
+      } catch (err) {
+        console.error('DriverLogin: Error checking session:', err);
+      }
+    }
+
+    checkSession();
+  }, []);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -31,7 +57,7 @@ export default function DriverLogin() {
     setSuccess(null);
 
     try {
-      console.log('Attempting to sign in with:', email);
+      console.log('DriverLogin: Attempting to sign in with:', email);
 
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -39,21 +65,42 @@ export default function DriverLogin() {
       });
 
       if (error) {
-        console.error('Login error:', error);
+        console.error('DriverLogin: Login error:', error);
         setError(error.message);
         return;
       }
 
-      console.log('Sign in successful:', data);
+      console.log('DriverLogin: Sign in successful');
       setSuccess('Login successful! Redirecting...');
+
+      // Get user profile to check role
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', data.user.id)
+        .single();
+
+      if (profileError) {
+        console.error('DriverLogin: Error fetching profile:', profileError);
+        setError('Error verifying user role. Please try again.');
+        return;
+      }
+
+      if (profileData.role !== 'driver') {
+        console.log(`DriverLogin: User is not a driver (${profileData.role})`);
+        setError('Access denied. This login is for drivers only.');
+        await supabase.auth.signOut();
+        return;
+      }
 
       // Force a delay to ensure session is properly established
       await new Promise(resolve => setTimeout(resolve, 1000));
 
-      // Redirect to driver dashboard
-      window.location.href = '/driver-dashboard';
+      // Redirect to minimal driver dashboard
+      console.log('DriverLogin: Redirecting to driver dashboard');
+      window.location.href = '/minimal-driver';
     } catch (err: any) {
-      console.error('Unexpected error:', err);
+      console.error('DriverLogin: Unexpected error:', err);
       setError(err.message || 'An unexpected error occurred');
     } finally {
       setLoading(false);
