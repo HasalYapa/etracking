@@ -3,9 +3,8 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '../../../lib/auth-context';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { RegisterFormData, UserRole, PlanTier } from '../../../types';
-import { supabase } from '../../../lib/supabase';
 
 export default function Register() {
   const [formData, setFormData] = useState<RegisterFormData>({
@@ -20,9 +19,10 @@ export default function Register() {
   });
   const [showBusinessFields, setShowBusinessFields] = useState(true);
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const router = useRouter();
-  const { signUp, isLoading } = useAuth();
+  const supabase = createClientComponentClient();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -40,51 +40,76 @@ export default function Register() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setIsLoading(true);
 
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
+      setIsLoading(false);
       return;
     }
 
     try {
       // First, sign up the user with Supabase Auth
-      await signUp(formData.email, formData.password, {
-        name: formData.name,
-        role: formData.role,
-        plan: formData.plan,
-        businessName: formData.businessName,
-        phone: formData.phone
+      const { data, error } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          data: {
+            name: formData.name,
+            role: formData.role,
+            plan: formData.plan,
+            businessName: formData.businessName,
+            phone: formData.phone
+          }
+        }
       });
 
-      // Get the current user and redirect based on role
-      const { data: { user } } = await supabase.auth.getUser();
-
-      if (user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .single();
-
-        if (profile) {
-          if (profile.role === 'shop_owner') {
-            router.push('/dashboard');
-          } else if (profile.role === 'driver') {
-            router.push('/driver');
-          } else if (profile.role === 'admin') {
-            router.push('/admin');
-          } else {
-            // Default fallback
-            router.push('/dashboard');
-          }
-        } else {
-          // No profile found, default to dashboard
-          router.push('/dashboard');
-        }
+      if (error) {
+        throw error;
       }
-      // If no user is found, the middleware will handle the redirect
+
+      // Get the current user and redirect based on role
+      if (data.user) {
+        // Create a profile record
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .upsert({
+            id: data.user.id,
+            name: formData.name,
+            email: formData.email,
+            role: formData.role,
+            business_name: formData.businessName,
+            phone: formData.phone,
+            subscription_tier: formData.plan,
+            subscription_status: 'active',
+            subscription_start: new Date().toISOString(),
+            subscription_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days from now
+          });
+
+        if (profileError) {
+          console.error('Error creating profile:', profileError);
+        }
+
+        // Redirect based on role
+        if (formData.role === 'shop_owner') {
+          router.push('/minimal-shop');
+        } else if (formData.role === 'driver') {
+          router.push('/minimal-driver');
+        } else if (formData.role === 'admin') {
+          router.push('/admin');
+        } else {
+          // Default fallback
+          router.push('/minimal-shop');
+        }
+      } else {
+        // Show a success message for email confirmation if needed
+        router.push('/login?registered=true');
+      }
     } catch (error: any) {
+      console.error('Registration error:', error);
       setError(error.message || 'An error occurred during registration');
+    } finally {
+      setIsLoading(false);
     }
   };
 
