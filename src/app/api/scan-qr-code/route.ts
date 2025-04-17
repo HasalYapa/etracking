@@ -19,11 +19,14 @@ export async function POST(request: Request) {
 
     console.log('scan-qr-code API: Received request:', { orderId, driverId, shopId, status, latitude, longitude });
 
+    // Use the driver ID from the request
+    const effectiveDriverId = driverId;
+
     // Log the driver ID and shop ID to help diagnose issues
-    if (!driverId) {
+    if (!effectiveDriverId) {
       console.warn('scan-qr-code API: No driver ID provided in the request');
     } else {
-      console.log('scan-qr-code API: Using driver ID:', driverId);
+      console.log('scan-qr-code API: Using driver ID from request:', effectiveDriverId);
     }
 
     if (!shopId) {
@@ -75,20 +78,20 @@ export async function POST(request: Request) {
     // The driver is the one scanning the QR code, so they should be recorded as the updater
 
     // Make sure we have a valid driver ID
-    if (!driverId) {
+    if (!effectiveDriverId) {
       return NextResponse.json({
         success: false,
-        error: 'Driver ID is required for order history updates'
+        error: 'Driver ID is required for order history updates (neither from auth nor request)'
       }, { status: 400 });
     }
 
-    console.log('scan-qr-code API: Using driver ID as updated_by:', driverId);
+    console.log('scan-qr-code API: Using driver ID as updated_by:', effectiveDriverId);
 
     const historyData = {
       order_id: orderId,
       status,
       notes: `Status updated to ${status}`,
-      updated_by: driverId, // Use the driver ID as the updated_by field
+      updated_by: effectiveDriverId, // Use the effective driver ID as the updated_by field
       created_at: new Date().toISOString()
       // latitude and longitude fields removed
     };
@@ -116,10 +119,10 @@ export async function POST(request: Request) {
       try {
         console.log('scan-qr-code API: Trying direct SQL approach for order history');
 
-        // Use the driver ID as the updated_by field
+        // Use the effective driver ID as the updated_by field
         const sql = `
           INSERT INTO order_history (order_id, status, notes, updated_by, created_at)
-          VALUES ('${orderId}', '${status}', 'Status updated to ${status}', '${driverId}', '${new Date().toISOString()}')
+          VALUES ('${orderId}', '${status}', 'Status updated to ${status}', '${effectiveDriverId}', '${new Date().toISOString()}')
           RETURNING *;
         `;
 
@@ -147,7 +150,7 @@ export async function POST(request: Request) {
     // Update the order status
     const updateData = {
       status,
-      driver_id: driverId, // Use the driver ID
+      driver_id: effectiveDriverId, // Use the effective driver ID
       updated_at: new Date().toISOString(),
       // If we have a shop ID, update the shop_id field
       ...(shopId ? { shop_id: shopId } : {})
@@ -190,3 +193,4 @@ export async function POST(request: Request) {
     }, { status: 500 });
   }
 }
+
