@@ -21,7 +21,7 @@ const generateTrackingNumber = () => {
   return `ET${randomPart}`;
 };
 
-export default function MinimalShopPage() {
+function MinimalShopContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [orders, setOrders] = useState<any[]>([]);
@@ -1025,5 +1025,17 @@ export default function MinimalShopPage() {
         </div>
       </footer>
     </div>
+  );
+}
+
+// Wrapper component with authentication protection
+import ProtectedRoute from '@/components/protected-route';
+import { useAuth } from '@/components/auth-provider';
+
+export default function MinimalShopPage() {
+  return (
+    <ProtectedRoute requiredRole="shop_owner" redirectTo="/shop-login">
+      <MinimalShopContent />
+    </ProtectedRoute>
   );
 }
