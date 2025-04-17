@@ -136,16 +136,22 @@ export default function Html5QRScanner({ onScan, onError }: Html5QRScannerProps)
         throw new Error('Scanner container not found');
       }
 
-      // Always create a new scanner instance to avoid issues
-      if (scannerRef.current) {
+      // Make sure we have a scanner instance
+      if (!scannerRef.current) {
+        console.log('Creating new scanner instance');
+        scannerRef.current = new Html5Qrcode(scannerContainerId);
+      } else {
+        // If scanner is already running, stop it first
         try {
-          await scannerRef.current.stop();
+          if (isScanning) {
+            console.log('Stopping existing scanner before restarting');
+            await scannerRef.current.stop();
+          }
         } catch (e) {
           console.log('Error stopping previous scanner instance:', e);
         }
       }
 
-      scannerRef.current = new Html5Qrcode(scannerContainerId);
       const scanner = scannerRef.current;
 
       // Get available cameras
@@ -248,11 +254,11 @@ export default function Html5QRScanner({ onScan, onError }: Html5QRScannerProps)
     try {
       console.log('Attempting to stop scanner...');
       if (scannerRef.current) {
-        if (isScanning) {
+        try {
           await scannerRef.current.stop();
           console.log('Scanner stopped successfully');
-        } else {
-          console.log('Scanner was not running');
+        } catch (stopErr) {
+          console.log('Error stopping scanner, may not have been running:', stopErr);
         }
       } else {
         console.log('No scanner instance to stop');
@@ -292,17 +298,25 @@ export default function Html5QRScanner({ onScan, onError }: Html5QRScannerProps)
     }
   };
 
-  // Clean up on unmount
+  // Initialize scanner when component mounts
   useEffect(() => {
+    // Create a scanner instance when the component mounts
+    scannerRef.current = new Html5Qrcode(scannerContainerId);
+
+    // Clean up on unmount
     return () => {
       console.log('Component unmounting, cleaning up scanner...');
       if (scannerRef.current) {
         try {
-          scannerRef.current.stop().catch(err => {
-            console.error('Error stopping scanner during cleanup:', err);
-          });
+          if (isScanning) {
+            scannerRef.current.stop().catch(err => {
+              console.error('Error stopping scanner during cleanup:', err);
+            });
+          }
         } catch (err) {
           console.error('Error during scanner cleanup:', err);
+        } finally {
+          scannerRef.current = null;
         }
       }
     };
