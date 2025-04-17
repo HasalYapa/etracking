@@ -1,5 +1,11 @@
 import { NextResponse } from 'next/server';
-import supabase from '@/utils/supabase-service';
+import { createClient } from '@supabase/supabase-js';
+
+// Create a Supabase client for this API route
+const supabaseUrl = 'https://slujerwtublzuxtzdtyw.supabase.co';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsdWplcnd0dWJsenV4dHpkdHl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ2NTUzNDYsImV4cCI6MjA2MDIzMTM0Nn0.5irKk2XDrs0ItDWcnN2dOzUBT6KG3Pppg6Slh2fb4CA';
+
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export async function GET(request: Request) {
   try {
@@ -7,10 +13,10 @@ export async function GET(request: Request) {
     const sessionToken = searchParams.get('session');
 
     if (!sessionToken) {
-      return NextResponse.json({ 
-        success: false, 
+      return NextResponse.json({
+        success: false,
         authenticated: false,
-        error: 'No session token provided' 
+        error: 'No session token provided'
       });
     }
 
@@ -21,10 +27,10 @@ export async function GET(request: Request) {
 
     if (error || !user) {
       console.error('API: Session verification error:', error);
-      return NextResponse.json({ 
-        success: false, 
+      return NextResponse.json({
+        success: false,
         authenticated: false,
-        error: error?.message || 'Invalid session' 
+        error: error?.message || 'Invalid session'
       });
     }
 
@@ -37,11 +43,11 @@ export async function GET(request: Request) {
 
     if (profileError) {
       console.error('API: Error fetching profile:', profileError);
-      return NextResponse.json({ 
-        success: false, 
+      return NextResponse.json({
+        success: false,
         authenticated: true,
         isDriver: false,
-        error: 'Error verifying user role' 
+        error: 'Error verifying user role'
       });
     }
 
@@ -69,8 +75,8 @@ export async function GET(request: Request) {
       }
     }
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       authenticated: true,
       isDriver,
       profile: profileData,
@@ -79,10 +85,10 @@ export async function GET(request: Request) {
     });
   } catch (error: any) {
     console.error('API: Unexpected error in check-driver-session:', error);
-    return NextResponse.json({ 
-      success: false, 
+    return NextResponse.json({
+      success: false,
       authenticated: false,
-      error: error.message 
+      error: error.message
     }, { status: 500 });
   }
 }

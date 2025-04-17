@@ -261,12 +261,7 @@ export default function DriverLogin() {
                 Sign up
               </Link>
             </p>
-            <p className="text-sm text-gray-600 mt-2">
-              Having trouble signing in?{' '}
-              <Link href="/minimal-driver" className="font-medium text-blue-600 hover:text-blue-500">
-                Go to driver dashboard directly
-              </Link>
-            </p>
+
           </div>
         </form>
       </div>

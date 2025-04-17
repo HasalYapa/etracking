@@ -1,5 +1,11 @@
 import { NextResponse } from 'next/server';
-import supabase from '@/utils/supabase-service';
+import { createClient } from '@supabase/supabase-js';
+
+// Create a Supabase client for this API route
+const supabaseUrl = 'https://slujerwtublzuxtzdtyw.supabase.co';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsdWplcnd0dWJsenV4dHpkdHl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ2NTUzNDYsImV4cCI6MjA2MDIzMTM0Nn0.5irKk2XDrs0ItDWcnN2dOzUBT6KG3Pppg6Slh2fb4CA';
+
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export async function POST(request: Request) {
   try {
@@ -7,9 +13,9 @@ export async function POST(request: Request) {
     const { email, password } = body;
 
     if (!email || !password) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Email and password are required' 
+      return NextResponse.json({
+        success: false,
+        error: 'Email and password are required'
       }, { status: 400 });
     }
 
@@ -39,23 +45,23 @@ export async function POST(request: Request) {
 
     if (profileError) {
       console.error('API: Error fetching profile:', profileError);
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Error verifying user role' 
+      return NextResponse.json({
+        success: false,
+        error: 'Error verifying user role'
       }, { status: 500 });
     }
 
     if (profileData.role !== 'driver') {
       console.log(`API: User is not a driver (${profileData.role})`);
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Access denied. This login is for drivers only.' 
+      return NextResponse.json({
+        success: false,
+        error: 'Access denied. This login is for drivers only.'
       }, { status: 403 });
     }
 
     // Return session data
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       session: data.session,
       user: data.user
     });
