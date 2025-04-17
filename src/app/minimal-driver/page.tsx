@@ -7,8 +7,8 @@ import LogoPlaceholder from '@/components/logo-placeholder';
 import Html5QRScanner from '@/components/Html5QrScanner';
 import EnhancedDriverNotifications from '@/components/enhanced-driver-notifications';
 import DriverOrderCard from '@/components/driver-order-card';
-import supabase from '@/utils/supabase-client';
-// Supabase client is imported from utils/supabase-client
+import { supabase } from '@/lib/supabase';
+// Supabase client is imported from lib/supabase
 
 export default function MinimalDriverPage() {
   const [user, setUser] = useState<any>(null);

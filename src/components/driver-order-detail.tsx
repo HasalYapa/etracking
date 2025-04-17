@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { MapPin, Phone, User, Clock, Package, Truck, CheckCheck } from 'lucide-react';
 import DriverOrderProgress from '@/components/driver-order-progress';
-import supabase from '@/utils/supabase-client';
+import { supabase } from '@/lib/supabase';
 
 interface DriverOrderDetailProps {
   orderId: string;
@@ -66,12 +66,34 @@ export default function DriverOrderDetail({ orderId, isOpen, onClose }: DriverOr
         // Fetch order history
         const { data: historyData, error: historyError } = await supabase
           .from('order_history')
-          .select(`
-            *,
-            updater:profiles(id, name, role)
-          `)
+          .select('*')
           .eq('order_id', orderId)
           .order('created_at', { ascending: true });
+
+        // Separately fetch updater profiles if needed
+        if (historyData && historyData.length > 0) {
+          // Get unique updater IDs
+          const updaterIds = [...new Set(historyData.map(item => item.updated_by))].filter(Boolean);
+
+          if (updaterIds.length > 0) {
+            const { data: updaters, error: updatersError } = await supabase
+              .from('profiles')
+              .select('id, name, role')
+              .in('id', updaterIds);
+
+            if (!updatersError && updaters) {
+              // Add updater info to history items
+              historyData.forEach(item => {
+                if (item.updated_by) {
+                  const updater = updaters.find(u => u.id === item.updated_by);
+                  if (updater) {
+                    item.updater = updater;
+                  }
+                }
+              });
+            }
+          }
+        }
 
         if (historyError) {
           console.error('Error fetching order history:', historyError);

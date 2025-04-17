@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import supabase from '@/utils/supabase-client';
+import { supabase } from '@/lib/supabase';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -36,10 +36,10 @@ interface EnhancedDriverNotificationsProps {
   onReject?: (notification: DriverNotification, reason?: string) => void;
 }
 
-export default function EnhancedDriverNotifications({ 
-  driverId, 
-  onAccept, 
-  onReject 
+export default function EnhancedDriverNotifications({
+  driverId,
+  onAccept,
+  onReject
 }: EnhancedDriverNotificationsProps) {
   const [notifications, setNotifications] = useState<DriverNotification[]>([]);
   const [loading, setLoading] = useState(true);
@@ -86,13 +86,13 @@ export default function EnhancedDriverNotifications({
         filter: `driver_id=eq.${driverId}`,
       }, (payload) => {
         console.log('Notification update received:', payload);
-        
+
         // Play sound for new notifications
         if (payload.eventType === 'INSERT') {
           playNotificationSound();
           vibrate();
         }
-        
+
         fetchNotifications();
       })
       .subscribe();
@@ -122,12 +122,12 @@ export default function EnhancedDriverNotifications({
   // Calculate estimated distance and time
   const calculateEstimates = async (notification: DriverNotification) => {
     if (!notification.order?.delivery_address) return;
-    
+
     // This is a placeholder. In a real app, you would use a mapping API
     // like Google Maps, Mapbox, or OpenStreetMap to calculate these values
     const randomDistance = Math.floor(Math.random() * 10) + 1; // 1-10 km
     const randomTime = randomDistance * 3 + Math.floor(Math.random() * 10); // Approx 3 min per km + random factor
-    
+
     setEstimatedDistance(randomDistance);
     setEstimatedTime(randomTime);
   };
@@ -184,7 +184,7 @@ export default function EnhancedDriverNotifications({
       if (notification) {
         if (action === 'accept' && onAccept) {
           onAccept(notification);
-          
+
           // Show browser notification
           if (Notification.permission === 'granted') {
             new Notification('Order Accepted', {
@@ -194,7 +194,7 @@ export default function EnhancedDriverNotifications({
           }
         } else if (action === 'reject' && onReject) {
           onReject(notification, reason);
-          
+
           // Show browser notification
           if (Notification.permission === 'granted') {
             new Notification('Order Rejected', {
@@ -204,7 +204,7 @@ export default function EnhancedDriverNotifications({
           }
         }
       }
-      
+
       // Close the confirmation dialog
       closeConfirmation();
     } catch (err: any) {
@@ -322,7 +322,7 @@ export default function EnhancedDriverNotifications({
                 {notification.order?.tracking_number || 'No Tracking #'}
               </Badge>
             </div>
-            
+
             <div className="p-4">
               <div className="mb-4">
                 <h4 className="font-medium text-gray-800 mb-1">
@@ -332,14 +332,14 @@ export default function EnhancedDriverNotifications({
                   {notification.order?.delivery_notes || 'No additional notes'}
                 </p>
               </div>
-              
+
               {notification.order && (
                 <div className="space-y-2 mb-4">
                   <div className="flex items-start space-x-2">
                     <MapPin className="h-4 w-4 text-gray-400 mt-0.5" />
                     <span className="text-sm text-gray-700">{notification.order.delivery_address}</span>
                   </div>
-                  
+
                   {notification.order.customer && (
                     <>
                       <div className="flex items-center space-x-2">
@@ -352,22 +352,22 @@ export default function EnhancedDriverNotifications({
                       </div>
                     </>
                   )}
-                  
+
                   <div className="flex items-center space-x-2">
                     <Clock className="h-4 w-4 text-gray-400" />
                     <span className="text-sm text-gray-700">Estimated delivery time: 30-45 minutes</span>
                   </div>
                 </div>
               )}
-              
+
               <div className="flex space-x-2 mt-4">
-                <Button 
+                <Button
                   onClick={() => openConfirmation(notification, 'accept')}
                   className="w-full bg-green-600 hover:bg-green-700 text-white"
                 >
                   Accept
                 </Button>
-                <Button 
+                <Button
                   onClick={() => openConfirmation(notification, 'reject')}
                   variant="outline"
                   className="w-full border-gray-300 text-gray-700 hover:bg-gray-100"
@@ -388,12 +388,12 @@ export default function EnhancedDriverNotifications({
               {confirmationType === 'accept' ? 'Accept Order' : 'Reject Order'}
             </DialogTitle>
             <DialogDescription>
-              {confirmationType === 'accept' 
-                ? 'Are you sure you want to accept this order?' 
+              {confirmationType === 'accept'
+                ? 'Are you sure you want to accept this order?'
                 : 'Please provide a reason for rejecting this order.'}
             </DialogDescription>
           </DialogHeader>
-          
+
           {selectedNotification && (
             <div className="py-4">
               <div className="mb-4 p-3 bg-gray-50 rounded-lg">
@@ -415,7 +415,7 @@ export default function EnhancedDriverNotifications({
                   )}
                 </div>
               </div>
-              
+
               {confirmationType === 'reject' && (
                 <div className="mb-4">
                   <label htmlFor="reason" className="block text-sm font-medium text-gray-700 mb-1">
@@ -432,7 +432,7 @@ export default function EnhancedDriverNotifications({
               )}
             </div>
           )}
-          
+
           <DialogFooter className="flex space-x-2 sm:justify-end">
             <Button
               type="button"
@@ -447,7 +447,7 @@ export default function EnhancedDriverNotifications({
               onClick={() => {
                 if (selectedNotification) {
                   handleAction(
-                    selectedNotification.id, 
+                    selectedNotification.id,
                     confirmationType === 'accept' ? 'accept' : 'reject',
                     confirmationType === 'reject' ? rejectionReason : undefined
                   );
