@@ -93,7 +93,21 @@ export default function DriverLogin() {
 
         // Redirect to minimal driver dashboard
         console.log('DriverLogin: Redirecting to driver dashboard');
-        window.location.href = '/minimal-driver';
+        try {
+          // Try multiple approaches to ensure redirection works
+          window.location.href = '/minimal-driver';
+
+          // Fallback: try after a short delay
+          setTimeout(() => {
+            window.location.replace('/minimal-driver');
+          }, 100);
+        } catch (redirectErr) {
+          console.error('DriverLogin: Error during redirect:', redirectErr);
+          // Last resort: create and click a link
+          const link = document.createElement('a');
+          link.href = '/minimal-driver';
+          link.click();
+        }
         return;
       } catch (apiError: any) {
         console.error('DriverLogin: API route failed, falling back to direct Supabase call:', apiError);
@@ -141,7 +155,21 @@ export default function DriverLogin() {
 
       // Redirect to minimal driver dashboard
       console.log('DriverLogin: Redirecting to driver dashboard');
-      window.location.href = '/minimal-driver';
+      try {
+        // Try multiple approaches to ensure redirection works
+        window.location.href = '/minimal-driver';
+
+        // Fallback: try after a short delay
+        setTimeout(() => {
+          window.location.replace('/minimal-driver');
+        }, 100);
+      } catch (redirectErr) {
+        console.error('DriverLogin: Error during redirect:', redirectErr);
+        // Last resort: create and click a link
+        const link = document.createElement('a');
+        link.href = '/minimal-driver';
+        link.click();
+      }
     } catch (err: any) {
       console.error('DriverLogin: Unexpected error:', err);
       setError(err.message || 'An unexpected error occurred');
@@ -209,6 +237,9 @@ export default function DriverLogin() {
             <button
               type="submit"
               disabled={loading}
+              onClick={(e) => {
+                handleLogin(e);
+              }}
               className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
             >
               {loading ? (
@@ -228,6 +259,12 @@ export default function DriverLogin() {
               Don't have an account?{' '}
               <Link href="/driver-signup" className="font-medium text-green-600 hover:text-green-500">
                 Sign up
+              </Link>
+            </p>
+            <p className="text-sm text-gray-600 mt-2">
+              Having trouble signing in?{' '}
+              <Link href="/minimal-driver" className="font-medium text-blue-600 hover:text-blue-500">
+                Go to driver dashboard directly
               </Link>
             </p>
           </div>
