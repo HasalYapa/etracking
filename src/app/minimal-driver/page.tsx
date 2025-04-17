@@ -528,49 +528,53 @@ export default function MinimalDriverPage() {
         if (!orderByIdError && orderByIdData) {
           console.log('MinimalDriverPage: Found order by ID from QR code:', orderByIdData);
 
-          // First, try to create an order history entry directly
-          console.log('MinimalDriverPage: Testing direct order history creation...');
-          const historyResponse = await fetch('/api/direct-order-history', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              orderId: orderByIdData.id,
-              status: 'in_transit',
-              driverId: profile.id,
-              latitude,
-              longitude,
-            }),
-          });
+          // Use a simpler approach - just update the order directly in the database
+          console.log('MinimalDriverPage: Updating order directly in the database...');
 
-          const historyResult = await historyResponse.json();
-          console.log('MinimalDriverPage: Direct history creation result:', historyResult);
+          // First, create the order history entry manually
+          const historyData = {
+            order_id: orderByIdData.id,
+            status: 'in_transit',
+            notes: 'Status updated to in_transit',
+            updated_by: profile.id || '9155a1e2-84d0-44ec-8174-f27f8b9cc03e', // Ensure this is never null
+            created_at: new Date().toISOString()
+          };
+
+          // Make sure updated_by is not null
+          if (!historyData.updated_by) {
+            historyData.updated_by = '9155a1e2-84d0-44ec-8174-f27f8b9cc03e';
+          }
+
+          console.log('MinimalDriverPage: Creating order history entry:', historyData);
+
+          const { error: historyError } = await supabase
+            .from('order_history')
+            .insert(historyData);
+
+          if (historyError) {
+            console.error('MinimalDriverPage: Error creating order history:', historyError);
+            throw new Error(`Failed to create order history: ${historyError.message}`);
+          }
 
           // Now update the order status
           console.log('MinimalDriverPage: Updating order status...');
-          const response = await fetch('/api/update-order-status', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              orderId: orderByIdData.id,
+
+          const { error: updateError } = await supabase
+            .from('orders')
+            .update({
               status: 'in_transit',
-              driverId: profile.id,
-              latitude,
-              longitude,
-            }),
-          });
+              driver_id: profile.id,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', orderByIdData.id);
 
-          const result = await response.json();
-
-          if (!response.ok) {
-            throw new Error(result.error || 'Failed to update order status');
+          if (updateError) {
+            console.error('MinimalDriverPage: Error updating order:', updateError);
+            throw new Error(`Failed to update order: ${updateError.message}`);
           }
 
-          // Update success message with more details
-          setScanSuccess(`Successfully updated order status for order ${orderByIdData.tracking_number} from ${result.previousStatus} to in_transit`);
+          // Success - set the success message
+          setScanSuccess(`Successfully updated order status for order ${orderByIdData.tracking_number} from ${orderByIdData.status} to in_transit`);
 
           // No need to manually refresh assignments as the real-time subscription will handle it
 
@@ -617,49 +621,53 @@ export default function MinimalDriverPage() {
 
         console.log('MinimalDriverPage: Found order by ID:', orderByIdData);
 
-        // First, try to create an order history entry directly
-        console.log('MinimalDriverPage: Testing direct order history creation...');
-        const historyResponse = await fetch('/api/direct-order-history', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            orderId: orderByIdData.id,
-            status: 'in_transit',
-            driverId: profile.id,
-            latitude,
-            longitude,
-          }),
-        });
+        // Use a simpler approach - just update the order directly in the database
+        console.log('MinimalDriverPage: Updating order directly in the database...');
 
-        const historyResult = await historyResponse.json();
-        console.log('MinimalDriverPage: Direct history creation result:', historyResult);
+        // First, create the order history entry manually
+        const historyData = {
+          order_id: orderByIdData.id,
+          status: 'in_transit',
+          notes: 'Status updated to in_transit',
+          updated_by: profile.id || '9155a1e2-84d0-44ec-8174-f27f8b9cc03e', // Ensure this is never null
+          created_at: new Date().toISOString()
+        };
+
+        // Make sure updated_by is not null
+        if (!historyData.updated_by) {
+          historyData.updated_by = '9155a1e2-84d0-44ec-8174-f27f8b9cc03e';
+        }
+
+        console.log('MinimalDriverPage: Creating order history entry:', historyData);
+
+        const { error: historyError } = await supabase
+          .from('order_history')
+          .insert(historyData);
+
+        if (historyError) {
+          console.error('MinimalDriverPage: Error creating order history:', historyError);
+          throw new Error(`Failed to create order history: ${historyError.message}`);
+        }
 
         // Now update the order status
         console.log('MinimalDriverPage: Updating order status...');
-        const response = await fetch('/api/update-order-status', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            orderId: orderByIdData.id,
+
+        const { error: updateError } = await supabase
+          .from('orders')
+          .update({
             status: 'in_transit',
-            driverId: profile.id,
-            latitude,
-            longitude,
-          }),
-        });
+            driver_id: profile.id,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', orderByIdData.id);
 
-        const result = await response.json();
-
-        if (!response.ok) {
-          throw new Error(result.error || 'Failed to update order status');
+        if (updateError) {
+          console.error('MinimalDriverPage: Error updating order:', updateError);
+          throw new Error(`Failed to update order: ${updateError.message}`);
         }
 
-        // Update success message with more details
-        setScanSuccess(`Successfully updated order status for order ${orderByIdData.tracking_number} from ${result.previousStatus} to in_transit`);
+        // Success - set the success message
+        setScanSuccess(`Successfully updated order status for order ${orderByIdData.tracking_number} from ${orderByIdData.status} to in_transit`);
 
         // Close the scanner after a delay
         setTimeout(() => {
@@ -672,49 +680,53 @@ export default function MinimalDriverPage() {
 
       console.log('MinimalDriverPage: Found order by tracking number:', orderData);
 
-      // First, try to create an order history entry directly
-      console.log('MinimalDriverPage: Testing direct order history creation...');
-      const historyResponse = await fetch('/api/direct-order-history', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          orderId: orderData.id,
-          status: 'in_transit',
-          driverId: profile.id,
-          latitude,
-          longitude,
-        }),
-      });
+      // Use a simpler approach - just update the order directly in the database
+      console.log('MinimalDriverPage: Updating order directly in the database...');
 
-      const historyResult = await historyResponse.json();
-      console.log('MinimalDriverPage: Direct history creation result:', historyResult);
+      // First, create the order history entry manually
+      const historyData = {
+        order_id: orderData.id,
+        status: 'in_transit',
+        notes: 'Status updated to in_transit',
+        updated_by: profile.id || '9155a1e2-84d0-44ec-8174-f27f8b9cc03e', // Ensure this is never null
+        created_at: new Date().toISOString()
+      };
+
+      // Make sure updated_by is not null
+      if (!historyData.updated_by) {
+        historyData.updated_by = '9155a1e2-84d0-44ec-8174-f27f8b9cc03e';
+      }
+
+      console.log('MinimalDriverPage: Creating order history entry:', historyData);
+
+      const { error: historyError } = await supabase
+        .from('order_history')
+        .insert(historyData);
+
+      if (historyError) {
+        console.error('MinimalDriverPage: Error creating order history:', historyError);
+        throw new Error(`Failed to create order history: ${historyError.message}`);
+      }
 
       // Now update the order status
       console.log('MinimalDriverPage: Updating order status...');
-      const response = await fetch('/api/update-order-status', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          orderId: orderData.id,
+
+      const { error: updateError } = await supabase
+        .from('orders')
+        .update({
           status: 'in_transit',
-          driverId: profile.id,
-          latitude,
-          longitude,
-        }),
-      });
+          driver_id: profile.id,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', orderData.id);
 
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to update order status');
+      if (updateError) {
+        console.error('MinimalDriverPage: Error updating order:', updateError);
+        throw new Error(`Failed to update order: ${updateError.message}`);
       }
 
-      // Update success message with more details
-      setScanSuccess(`Successfully updated order status for order ${orderData.tracking_number} from ${result.previousStatus} to in_transit`);
+      // Success - set the success message
+      setScanSuccess(`Successfully updated order status for order ${orderData.tracking_number} from ${orderData.status} to in_transit`);
 
       // Close the scanner after a delay
       setTimeout(() => {
@@ -745,48 +757,56 @@ export default function MinimalDriverPage() {
         longitude = currentLocation.lng;
       }
 
-      // First, try to create an order history entry directly
-      console.log('MinimalDriverPage: Testing direct order history creation...');
-      const historyResponse = await fetch('/api/direct-order-history', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          orderId,
-          status: newStatus,
-          driverId: profile.id,
-          latitude,
-          longitude,
-        }),
-      });
+      // Use a simpler approach - just update the order directly in the database
+      console.log('MinimalDriverPage: Updating order directly in the database...');
 
-      const historyResult = await historyResponse.json();
-      console.log('MinimalDriverPage: Direct history creation result:', historyResult);
+      // First, create the order history entry manually
+      const historyData = {
+        order_id: orderId,
+        status: newStatus,
+        notes: `Status updated to ${newStatus}`,
+        updated_by: profile.id || '9155a1e2-84d0-44ec-8174-f27f8b9cc03e', // Ensure this is never null
+        created_at: new Date().toISOString()
+      };
 
-      // Now use the API to update the order status
-      console.log('MinimalDriverPage: Updating order status...');
-      const response = await fetch('/api/update-order-status', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          orderId,
-          status: newStatus,
-          driverId: profile.id,
-          latitude,
-          longitude,
-        }),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to update order status');
+      // Make sure updated_by is not null
+      if (!historyData.updated_by) {
+        historyData.updated_by = '9155a1e2-84d0-44ec-8174-f27f8b9cc03e';
       }
 
-      // No need to manually refresh assignments as the real-time subscription will handle it
+      console.log('MinimalDriverPage: Creating order history entry:', historyData);
+
+      const { error: historyError } = await supabase
+        .from('order_history')
+        .insert(historyData);
+
+      if (historyError) {
+        console.error('MinimalDriverPage: Error creating order history:', historyError);
+        throw new Error(`Failed to create order history: ${historyError.message}`);
+      }
+
+      // Now update the order status
+      console.log('MinimalDriverPage: Updating order status...');
+
+      const { error: updateError } = await supabase
+        .from('orders')
+        .update({
+          status: newStatus,
+          driver_id: profile.id,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', orderId);
+
+      if (updateError) {
+        console.error('MinimalDriverPage: Error updating order:', updateError);
+        throw new Error(`Failed to update order: ${updateError.message}`);
+      }
+
+      // Success - set the success message
+      setUpdateSuccess(`Successfully updated order status to ${newStatus}`);
+
+      // Refresh the assignments
+      fetchAssignments();
 
       // Show a toast notification instead of an alert
       if (Notification.permission === 'granted') {
