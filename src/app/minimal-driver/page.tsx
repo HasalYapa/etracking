@@ -536,54 +536,31 @@ export default function MinimalDriverPage() {
         if (!orderByIdError && orderByIdData) {
           console.log('MinimalDriverPage: Found order by ID from QR code:', orderByIdData);
 
-          // Use a simpler approach - just update the order directly in the database
-          console.log('MinimalDriverPage: Updating order directly in the database...');
+          // Use the dedicated API endpoint for QR code scanning
+          console.log('MinimalDriverPage: Using scan-qr-code API endpoint');
 
-          // First, create the order history entry manually
-          const historyData = {
-            order_id: orderByIdData.id,
-            status: 'in_transit',
-            notes: 'Status updated to in_transit',
-            updated_by: profile.id || '9155a1e2-84d0-44ec-8174-f27f8b9cc03e', // Ensure this is never null
-            created_at: new Date().toISOString()
-          };
-
-          // Make sure updated_by is not null
-          if (!historyData.updated_by) {
-            historyData.updated_by = '9155a1e2-84d0-44ec-8174-f27f8b9cc03e';
-          }
-
-          console.log('MinimalDriverPage: Creating order history entry:', historyData);
-
-          // Use the admin client to bypass RLS
-          console.log('MinimalDriverPage: Using admin client to bypass RLS');
-          const { error: historyError } = await supabaseAdmin
-            .from('order_history')
-            .insert(historyData);
-
-          if (historyError) {
-            console.error('MinimalDriverPage: Error creating order history:', historyError);
-            throw new Error(`Failed to create order history: ${historyError.message}`);
-          }
-
-          // Now update the order status
-          console.log('MinimalDriverPage: Updating order status...');
-
-          // Use the admin client to bypass RLS
-          console.log('MinimalDriverPage: Using admin client to bypass RLS for order update');
-          const { error: updateError } = await supabaseAdmin
-            .from('orders')
-            .update({
+          const response = await fetch('/api/scan-qr-code', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              orderId: orderByIdData.id,
+              driverId: profile.id,
               status: 'in_transit',
-              driver_id: profile.id,
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', orderByIdData.id);
+              latitude: latitude,
+              longitude: longitude
+            }),
+          });
 
-          if (updateError) {
-            console.error('MinimalDriverPage: Error updating order:', updateError);
-            throw new Error(`Failed to update order: ${updateError.message}`);
+          const result = await response.json();
+
+          if (!response.ok) {
+            console.error('MinimalDriverPage: Error from scan-qr-code API:', result);
+            throw new Error(result.error || 'Failed to process QR code');
           }
+
+          console.log('MinimalDriverPage: scan-qr-code API response:', result);
 
           // Success - set the success message
           setScanSuccess(`Successfully updated order status for order ${orderByIdData.tracking_number} from ${orderByIdData.status} to in_transit`);
@@ -635,54 +612,31 @@ export default function MinimalDriverPage() {
 
         console.log('MinimalDriverPage: Found order by ID:', orderByIdData);
 
-        // Use a simpler approach - just update the order directly in the database
-        console.log('MinimalDriverPage: Updating order directly in the database...');
+        // Use the dedicated API endpoint for QR code scanning
+        console.log('MinimalDriverPage: Using scan-qr-code API endpoint');
 
-        // First, create the order history entry manually
-        const historyData = {
-          order_id: orderByIdData.id,
-          status: 'in_transit',
-          notes: 'Status updated to in_transit',
-          updated_by: profile.id || '9155a1e2-84d0-44ec-8174-f27f8b9cc03e', // Ensure this is never null
-          created_at: new Date().toISOString()
-        };
-
-        // Make sure updated_by is not null
-        if (!historyData.updated_by) {
-          historyData.updated_by = '9155a1e2-84d0-44ec-8174-f27f8b9cc03e';
-        }
-
-        console.log('MinimalDriverPage: Creating order history entry:', historyData);
-
-        // Use the admin client to bypass RLS
-        console.log('MinimalDriverPage: Using admin client to bypass RLS');
-        const { error: historyError } = await supabaseAdmin
-          .from('order_history')
-          .insert(historyData);
-
-        if (historyError) {
-          console.error('MinimalDriverPage: Error creating order history:', historyError);
-          throw new Error(`Failed to create order history: ${historyError.message}`);
-        }
-
-        // Now update the order status
-        console.log('MinimalDriverPage: Updating order status...');
-
-        // Use the admin client to bypass RLS
-        console.log('MinimalDriverPage: Using admin client to bypass RLS for order update');
-        const { error: updateError } = await supabaseAdmin
-          .from('orders')
-          .update({
+        const response = await fetch('/api/scan-qr-code', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            orderId: orderByIdData.id,
+            driverId: profile.id,
             status: 'in_transit',
-            driver_id: profile.id,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', orderByIdData.id);
+            latitude: latitude,
+            longitude: longitude
+          }),
+        });
 
-        if (updateError) {
-          console.error('MinimalDriverPage: Error updating order:', updateError);
-          throw new Error(`Failed to update order: ${updateError.message}`);
+        const result = await response.json();
+
+        if (!response.ok) {
+          console.error('MinimalDriverPage: Error from scan-qr-code API:', result);
+          throw new Error(result.error || 'Failed to process QR code');
         }
+
+        console.log('MinimalDriverPage: scan-qr-code API response:', result);
 
         // Success - set the success message
         setScanSuccess(`Successfully updated order status for order ${orderByIdData.tracking_number} from ${orderByIdData.status} to in_transit`);
@@ -702,54 +656,31 @@ export default function MinimalDriverPage() {
 
       console.log('MinimalDriverPage: Found order by tracking number:', orderData);
 
-      // Use a simpler approach - just update the order directly in the database
-      console.log('MinimalDriverPage: Updating order directly in the database...');
+      // Use the dedicated API endpoint for QR code scanning
+      console.log('MinimalDriverPage: Using scan-qr-code API endpoint');
 
-      // First, create the order history entry manually
-      const historyData = {
-        order_id: orderData.id,
-        status: 'in_transit',
-        notes: 'Status updated to in_transit',
-        updated_by: profile.id || '9155a1e2-84d0-44ec-8174-f27f8b9cc03e', // Ensure this is never null
-        created_at: new Date().toISOString()
-      };
-
-      // Make sure updated_by is not null
-      if (!historyData.updated_by) {
-        historyData.updated_by = '9155a1e2-84d0-44ec-8174-f27f8b9cc03e';
-      }
-
-      console.log('MinimalDriverPage: Creating order history entry:', historyData);
-
-      // Use the admin client to bypass RLS
-      console.log('MinimalDriverPage: Using admin client to bypass RLS');
-      const { error: historyError } = await supabaseAdmin
-        .from('order_history')
-        .insert(historyData);
-
-      if (historyError) {
-        console.error('MinimalDriverPage: Error creating order history:', historyError);
-        throw new Error(`Failed to create order history: ${historyError.message}`);
-      }
-
-      // Now update the order status
-      console.log('MinimalDriverPage: Updating order status...');
-
-      // Use the admin client to bypass RLS
-      console.log('MinimalDriverPage: Using admin client to bypass RLS for order update');
-      const { error: updateError } = await supabaseAdmin
-        .from('orders')
-        .update({
+      const response = await fetch('/api/scan-qr-code', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          orderId: orderData.id,
+          driverId: profile.id,
           status: 'in_transit',
-          driver_id: profile.id,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', orderData.id);
+          latitude: latitude,
+          longitude: longitude
+        }),
+      });
 
-      if (updateError) {
-        console.error('MinimalDriverPage: Error updating order:', updateError);
-        throw new Error(`Failed to update order: ${updateError.message}`);
+      const result = await response.json();
+
+      if (!response.ok) {
+        console.error('MinimalDriverPage: Error from scan-qr-code API:', result);
+        throw new Error(result.error || 'Failed to process QR code');
       }
+
+      console.log('MinimalDriverPage: scan-qr-code API response:', result);
 
       // Success - set the success message
       setScanSuccess(`Successfully updated order status for order ${orderData.tracking_number} from ${orderData.status} to in_transit`);
@@ -820,21 +751,31 @@ export default function MinimalDriverPage() {
       // Now update the order status
       console.log('MinimalDriverPage: Updating order status...');
 
-      // Use the admin client to bypass RLS
-      console.log('MinimalDriverPage: Using admin client to bypass RLS for order update');
-      const { error: updateError } = await supabaseAdmin
-        .from('orders')
-        .update({
-          status: newStatus,
-          driver_id: profile.id,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', orderId);
+      // Use the dedicated API endpoint for QR code scanning
+      console.log('MinimalDriverPage: Using scan-qr-code API endpoint');
 
-      if (updateError) {
-        console.error('MinimalDriverPage: Error updating order:', updateError);
-        throw new Error(`Failed to update order: ${updateError.message}`);
+      const response = await fetch('/api/scan-qr-code', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          orderId: orderId,
+          driverId: profile.id,
+          status: newStatus,
+          latitude: latitude,
+          longitude: longitude
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        console.error('MinimalDriverPage: Error from scan-qr-code API:', result);
+        throw new Error(result.error || 'Failed to update order status');
       }
+
+      console.log('MinimalDriverPage: scan-qr-code API response:', result);
 
       // Success - set the success message
       setScanSuccess(`Successfully updated order status to ${newStatus}`);
