@@ -52,13 +52,13 @@ export async function GET(request: Request) {
     }
 
     // Use a default driver ID if none is provided
-    const updatedBy = driverId || '9155a1e2-84d0-44ec-8174-f27f8b9cc03e'; // Default driver ID
+    const effectiveDriverId = driverId || '9155a1e2-84d0-44ec-8174-f27f8b9cc03e'; // Default driver ID
 
     const updateData = {
       status: 'in_transit',
-      driver_id: updatedBy,
+      driver_id: effectiveDriverId,
       updated_at: new Date().toISOString(),
-      updated_by: updatedBy // Add this field for the trigger
+      updated_by: effectiveDriverId // Add this field for the trigger
     };
 
     const { data: updatedResults, error: updateError } = await supabaseAdmin
@@ -92,19 +92,12 @@ export async function GET(request: Request) {
 
     // Step 3: Try to create an order history entry using admin client to bypass RLS
 
-    // Make sure driverId is not null or undefined
-    if (!driverId) {
-      console.error('Driver ID is null or undefined, using a default value');
-    }
-
-    // Use a default driver ID if none is provided
-    const updatedBy = driverId || '9155a1e2-84d0-44ec-8174-f27f8b9cc03e'; // Default driver ID
-
+    // Use the same effective driver ID for history entry
     const historyData = {
       order_id: orderId,
       status: 'in_transit',
       notes: 'Status updated to in_transit (test)',
-      updated_by: updatedBy, // Use the non-null driver ID
+      updated_by: effectiveDriverId, // Use the same effective driver ID
       created_at: new Date().toISOString()
     };
 

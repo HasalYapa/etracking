@@ -61,13 +61,13 @@ export async function POST(request: Request) {
     }
 
     // Use a default driver ID if none is provided
-    const updatedBy = driverId || '9155a1e2-84d0-44ec-8174-f27f8b9cc03e'; // Default driver ID
+    const effectiveDriverId = driverId || '9155a1e2-84d0-44ec-8174-f27f8b9cc03e'; // Default driver ID
 
     const updateData = {
       status,
-      driver_id: updatedBy, // Ensure driver is assigned
+      driver_id: effectiveDriverId, // Ensure driver is assigned
       updated_at: new Date().toISOString(),
-      updated_by: updatedBy // Add this field for the trigger
+      updated_by: effectiveDriverId // Add this field for the trigger
     };
     console.log('Update data:', updateData);
 
@@ -95,20 +95,18 @@ export async function POST(request: Request) {
     // Create order history entry using admin client to bypass RLS
     console.log('Creating order history entry');
 
-    // Make sure driverId is not null or undefined
+    // Make sure driverId is not null or undefined for history entry
     if (!driverId) {
-      console.error('Driver ID is null or undefined, using a default value');
+      console.error('Driver ID is null or undefined for history entry, using a default value');
     }
 
-    // Use a default driver ID if none is provided
-    const updatedBy = driverId || '9155a1e2-84d0-44ec-8174-f27f8b9cc03e'; // Default driver ID
-
+    // Use the same effective driver ID for consistency
     const historyData = {
       order_id: orderId,
       status,
       notes: `Status updated to ${status}`,
       created_at: new Date().toISOString(),
-      updated_by: updatedBy, // Use the non-null driver ID
+      updated_by: effectiveDriverId, // Use the same effective driver ID
       latitude: latitude || null,
       longitude: longitude || null
     };
