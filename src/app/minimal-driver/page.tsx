@@ -26,6 +26,20 @@ export default function MinimalDriverPage() {
   const [scanError, setScanError] = useState<string | null>(null);
   const [currentLocation, setCurrentLocation] = useState<{lat: number, lng: number} | null>(null);
 
+  // Set a timeout to handle stuck loading state
+  useEffect(() => {
+    // If still loading after 10 seconds, show a timeout error
+    const timeoutId = setTimeout(() => {
+      if (loading) {
+        console.log('MinimalDriverPage: Loading timeout reached');
+        setError('Loading timeout. Please try refreshing the page or return to login.');
+        setLoading(false);
+      }
+    }, 10000); // 10 seconds timeout
+
+    return () => clearTimeout(timeoutId);
+  }, [loading]);
+
   // Get current location
   useEffect(() => {
     if (navigator.geolocation) {
@@ -44,14 +58,81 @@ export default function MinimalDriverPage() {
   }, []);
 
   useEffect(() => {
+    let isMounted = true;
+
     async function getSession() {
       try {
-        setLoading(true);
+        if (isMounted) setLoading(true);
         console.log('MinimalDriverPage: Starting authentication check...');
 
-        // Get session
-        console.log('MinimalDriverPage: Fetching session...');
+        // Try to get session from localStorage first
+        let sessionToken = null;
+        try {
+          const storedSession = localStorage.getItem('supabase.auth.token');
+          if (storedSession) {
+            const parsedSession = JSON.parse(storedSession);
+            if (parsedSession?.currentSession?.access_token) {
+              sessionToken = parsedSession.currentSession.access_token;
+              console.log('MinimalDriverPage: Found session token in localStorage');
+            }
+          }
+        } catch (storageErr) {
+          console.error('MinimalDriverPage: Error reading from localStorage:', storageErr);
+        }
+
+        // Try using the API route first
+        try {
+          console.log('MinimalDriverPage: Checking session via API route...');
+          const url = sessionToken
+            ? `/api/check-driver-session?session=${encodeURIComponent(sessionToken)}`
+            : '/api/check-driver-session';
+
+          const response = await fetch(url);
+          const result = await response.json();
+
+          if (!isMounted) return;
+
+          if (!result.success || !result.authenticated) {
+            console.log('MinimalDriverPage: API session check failed:', result.error);
+            throw new Error(result.error || 'Not authenticated');
+          }
+
+          if (!result.isDriver) {
+            console.log('MinimalDriverPage: User is not a driver');
+            setError('Access denied. This dashboard is for drivers only.');
+            setLoading(false);
+            return;
+          }
+
+          console.log('MinimalDriverPage: API session check successful');
+          setUser(result.user);
+          setProfile(result.profile);
+          setAssignments(result.assignments || []);
+
+          // Calculate stats
+          const driverAssignments = result.assignments || [];
+          setStats({
+            total: driverAssignments.length,
+            pending: driverAssignments.filter(order => order.status === 'assigned' || order.status === 'pending').length,
+            in_transit: driverAssignments.filter(order =>
+              order.status === 'in_transit' ||
+              order.status === 'picked_up'
+            ).length,
+            delivered: driverAssignments.filter(order => order.status === 'delivered').length
+          });
+
+          if (isMounted) setLoading(false);
+          return;
+        } catch (apiError) {
+          console.error('MinimalDriverPage: API route failed, falling back to direct Supabase call:', apiError);
+          // Continue to fallback method
+        }
+
+        // Fallback: Use direct Supabase client
+        console.log('MinimalDriverPage: Falling back to direct Supabase session check');
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+        if (!isMounted) return;
 
         if (sessionError) {
           console.error('MinimalDriverPage: Session error:', sessionError);
@@ -76,6 +157,8 @@ export default function MinimalDriverPage() {
           .eq('id', session.user.id)
           .single();
 
+        if (!isMounted) return;
+
         if (profileError) {
           console.error('MinimalDriverPage: Error fetching profile:', profileError);
           setError('Error fetching profile. Please try again.');
@@ -99,15 +182,23 @@ export default function MinimalDriverPage() {
           console.log('MinimalDriverPage: Assignments loaded successfully');
         }
       } catch (err: any) {
+        if (!isMounted) return;
         console.error('MinimalDriverPage: Error in authentication flow:', err);
         setError(err.message);
       } finally {
-        console.log('MinimalDriverPage: Setting loading to false');
-        setLoading(false);
+        if (isMounted) {
+          console.log('MinimalDriverPage: Setting loading to false');
+          setLoading(false);
+        }
       }
     }
 
     getSession();
+
+    // Cleanup function to prevent state updates after unmount
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const loadDriverAssignments = async (driverId: string) => {

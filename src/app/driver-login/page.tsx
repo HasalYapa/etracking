@@ -59,6 +59,49 @@ export default function DriverLogin() {
     try {
       console.log('DriverLogin: Attempting to sign in with:', email);
 
+      // Try using the API route first
+      try {
+        console.log('DriverLogin: Using API route for login...');
+        const response = await fetch('/api/driver-login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ email, password }),
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          console.error('DriverLogin: API login error:', result.error);
+          throw new Error(result.error || 'Login failed');
+        }
+
+        console.log('DriverLogin: API login successful');
+        setSuccess('Login successful! Redirecting...');
+
+        // Store the session in localStorage to ensure it's available
+        if (result.session) {
+          localStorage.setItem('supabase.auth.token', JSON.stringify({
+            currentSession: result.session,
+            expiresAt: Math.floor(Date.now() / 1000) + 3600
+          }));
+        }
+
+        // Force a delay to ensure session is properly established
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        // Redirect to minimal driver dashboard
+        console.log('DriverLogin: Redirecting to driver dashboard');
+        window.location.href = '/minimal-driver';
+        return;
+      } catch (apiError: any) {
+        console.error('DriverLogin: API route failed, falling back to direct Supabase call:', apiError);
+        // Continue to fallback method
+      }
+
+      // Fallback: Use direct Supabase client
+      console.log('DriverLogin: Falling back to direct Supabase login');
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
