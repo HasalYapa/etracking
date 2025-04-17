@@ -570,6 +570,13 @@ export default function MinimalDriverPage() {
           console.log('MinimalDriverPage: Manually refreshing assignments after scan');
           await loadDriverAssignments(profile.id);
 
+          // Force a UI refresh by updating a state variable
+          setStats(prevStats => ({
+            ...prevStats,
+            in_transit: prevStats.in_transit + 1,
+            pending: Math.max(0, prevStats.pending - 1)
+          }));
+
           // Close the scanner after a delay
           setTimeout(() => {
             setScannerOpen(false);
@@ -647,6 +654,13 @@ export default function MinimalDriverPage() {
         console.log('MinimalDriverPage: Manually refreshing assignments after scan');
         await loadDriverAssignments(profile.id);
 
+        // Force a UI refresh by updating a state variable
+        setStats(prevStats => ({
+          ...prevStats,
+          in_transit: prevStats.in_transit + 1,
+          pending: Math.max(0, prevStats.pending - 1)
+        }));
+
         // Close the scanner after a delay
         setTimeout(() => {
           setScannerOpen(false);
@@ -691,6 +705,13 @@ export default function MinimalDriverPage() {
       // Manually refresh assignments to ensure UI is updated
       console.log('MinimalDriverPage: Manually refreshing assignments after scan');
       await loadDriverAssignments(profile.id);
+
+      // Force a UI refresh by updating a state variable
+      setStats(prevStats => ({
+        ...prevStats,
+        in_transit: prevStats.in_transit + 1,
+        pending: Math.max(0, prevStats.pending - 1)
+      }));
 
       // Close the scanner after a delay
       setTimeout(() => {
@@ -786,6 +807,21 @@ export default function MinimalDriverPage() {
 
       // Refresh the assignments
       await loadDriverAssignments(profile.id);
+
+      // Force a UI refresh by updating a state variable
+      if (newStatus === 'in_transit') {
+        setStats(prevStats => ({
+          ...prevStats,
+          in_transit: prevStats.in_transit + 1,
+          pending: Math.max(0, prevStats.pending - 1)
+        }));
+      } else if (newStatus === 'delivered') {
+        setStats(prevStats => ({
+          ...prevStats,
+          delivered: prevStats.delivered + 1,
+          in_transit: Math.max(0, prevStats.in_transit - 1)
+        }));
+      }
 
       // Show a toast notification instead of an alert
       if (Notification.permission === 'granted') {
@@ -1054,7 +1090,18 @@ export default function MinimalDriverPage() {
 
         <div className="bg-white shadow-md rounded-xl p-5">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
-            <h2 className="text-xl font-semibold text-gray-800">My Assignments</h2>
+            <div className="flex items-center gap-3">
+              <h2 className="text-xl font-semibold text-gray-800">My Assignments</h2>
+              <button
+                onClick={() => loadDriverAssignments(profile?.id || '')}
+                className="p-2 text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+                title="Refresh assignments"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </button>
+            </div>
             <div className="relative">
               <select
                 value={statusFilter || 'all'}
