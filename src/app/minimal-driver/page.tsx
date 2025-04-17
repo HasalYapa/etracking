@@ -41,6 +41,7 @@ export default function MinimalDriverPage() {
             console.log('MinimalDriverPage: Forced sign out due to timeout');
             // Clear any stored session data
             localStorage.removeItem('supabase.auth.token');
+            localStorage.removeItem('sb-slujerwtublzuxtzdtyw-auth-token');
           });
         } catch (e) {
           console.error('MinimalDriverPage: Error during forced sign out:', e);
@@ -477,6 +478,11 @@ export default function MinimalDriverPage() {
     try {
       console.log('MinimalDriverPage: Signing out...');
       await supabase.auth.signOut();
+
+      // Clear any stored session data
+      localStorage.removeItem('supabase.auth.token');
+      localStorage.removeItem('sb-slujerwtublzuxtzdtyw-auth-token');
+
       console.log('MinimalDriverPage: Sign out successful, redirecting to login page');
       window.location.href = '/driver-login';
     } catch (err) {

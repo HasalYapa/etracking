@@ -19,7 +19,7 @@ export function getSupabaseClient(): SupabaseClient {
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: true,
-      storageKey: 'supabase.auth.token',
+      storageKey: 'sb-slujerwtublzuxtzdtyw-auth-token',
     },
   });
 

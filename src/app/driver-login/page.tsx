@@ -82,6 +82,14 @@ export default function DriverLogin() {
 
         // Store the session in localStorage to ensure it's available
         if (result.session) {
+          // Store in the correct Supabase format
+          localStorage.setItem('sb-slujerwtublzuxtzdtyw-auth-token', JSON.stringify({
+            access_token: result.session.access_token,
+            refresh_token: result.session.refresh_token,
+            expires_at: Math.floor(Date.now() / 1000) + 3600
+          }));
+
+          // Also store in legacy format for backward compatibility
           localStorage.setItem('supabase.auth.token', JSON.stringify({
             currentSession: result.session,
             expiresAt: Math.floor(Date.now() / 1000) + 3600
@@ -262,6 +270,11 @@ export default function DriverLogin() {
               </Link>
             </p>
 
+            <div className="mt-4">
+              <Link href="/diagnostic" className="text-xs text-gray-500 hover:text-gray-700">
+                Diagnostic Tool
+              </Link>
+            </div>
           </div>
         </form>
       </div>
