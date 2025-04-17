@@ -57,17 +57,17 @@ export default function Login() {
           } else if (profile) {
             redirectBasedOnRole(profile.role);
           } else {
-            // No profile found, default to dashboard
-            router.push('/dashboard');
+            // No profile found, default to minimal-shop
+            router.push('/minimal-shop');
           }
         } catch (profileError) {
           console.error('Error in profile fetch:', profileError);
           // Default fallback
-          router.push('/dashboard');
+          router.push('/minimal-shop');
         }
       } else {
-        // No user found, redirect to dashboard as fallback
-        router.push('/dashboard');
+        // No user found, redirect to minimal-shop as fallback
+        router.push('/minimal-shop');
       }
     } catch (error: any) {
       setError(error.message || 'An error occurred during login');
@@ -78,18 +78,18 @@ export default function Login() {
   const redirectBasedOnRole = (role: string) => {
     console.log('Redirecting based on role:', role);
     if (role === 'shop_owner') {
-      console.log('Redirecting to /dashboard');
-      router.push('/dashboard');
+      console.log('Redirecting to /minimal-shop');
+      router.push('/minimal-shop');
     } else if (role === 'driver') {
-      console.log('Redirecting to /driver');
-      router.push('/driver');
+      console.log('Redirecting to /minimal-driver');
+      router.push('/minimal-driver');
     } else if (role === 'admin') {
       console.log('Redirecting to /admin');
       router.push('/admin');
     } else {
       // Default fallback
-      console.log('Redirecting to default /dashboard');
-      router.push('/dashboard');
+      console.log('Redirecting to default /minimal-shop');
+      router.push('/minimal-shop');
     }
   };
 
