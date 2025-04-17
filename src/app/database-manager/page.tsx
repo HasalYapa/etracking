@@ -18,14 +18,14 @@ export default function DatabaseManagerPage() {
     try {
       setLoading(true);
       setError(null);
-      
+
       const response = await fetch('/api/database-setup');
       const result = await response.json();
-      
+
       if (!result.success) {
         throw new Error(result.error || 'Failed to get database status');
       }
-      
+
       setStatus(result);
     } catch (err: any) {
       console.error('Error fetching database status:', err);
@@ -40,16 +40,16 @@ export default function DatabaseManagerPage() {
       setLoading(true);
       setError(null);
       setActionResult(null);
-      
+
       const response = await fetch('/api/database-setup?action=add-foreign-keys');
       const result = await response.json();
-      
+
       if (!result.success) {
         throw new Error(result.error || 'Failed to add foreign keys');
       }
-      
+
       setActionResult(result);
-      
+
       // Refresh database status
       fetchDatabaseStatus();
     } catch (err: any) {
@@ -65,14 +65,14 @@ export default function DatabaseManagerPage() {
       setLoading(true);
       setError(null);
       setTestResults(null);
-      
+
       const response = await fetch('/api/database-setup?action=test-relationships');
       const result = await response.json();
-      
+
       if (!result.success) {
         throw new Error(result.error || 'Failed to test relationships');
       }
-      
+
       setTestResults(result.relationships);
     } catch (err: any) {
       console.error('Error testing relationships:', err);
@@ -89,31 +89,31 @@ export default function DatabaseManagerPage() {
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-2xl font-bold text-gray-900">Database Manager</h1>
             <div className="flex space-x-4">
-              <Link 
-                href="/supabase-analyzer" 
+              <Link
+                href="/supabase-analyzer"
                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
               >
                 Supabase Analyzer
               </Link>
-              <Link 
-                href="/diagnostic" 
+              <Link
+                href="/diagnostic"
                 className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
               >
                 Diagnostic Tool
               </Link>
-              <Link 
-                href="/" 
+              <Link
+                href="/"
                 className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
               >
                 Home
               </Link>
             </div>
           </div>
-          
+
           <p className="text-gray-600 mb-6">
             This tool helps manage your database schema and fix relationship issues.
           </p>
-          
+
           {error && (
             <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-6">
               <div className="flex">
@@ -128,11 +128,11 @@ export default function DatabaseManagerPage() {
               </div>
             </div>
           )}
-          
+
           {/* Database Status */}
           <div className="mb-8">
             <h2 className="text-lg font-medium text-gray-900 mb-4">Database Status</h2>
-            
+
             {loading && !status ? (
               <div className="flex justify-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -142,12 +142,23 @@ export default function DatabaseManagerPage() {
                 <h3 className="font-medium text-gray-700 mb-2">Tables:</h3>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                   {status.tables.map((table: string) => (
-                    <div key={table} className="bg-white p-2 rounded-md text-sm">
-                      {table}
+                    <div key={table} className={`p-2 rounded-md text-sm ${status.tableData?.[table]?.exists ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
+                      <div className="flex justify-between items-center">
+                        <span>{table}</span>
+                        {status.tableData?.[table]?.exists ? (
+                          <span className="text-xs px-2 py-0.5 bg-green-100 text-green-800 rounded-full">
+                            OK
+                          </span>
+                        ) : (
+                          <span className="text-xs px-2 py-0.5 bg-red-100 text-red-800 rounded-full">
+                            Error
+                          </span>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
-                
+
                 <div className="mt-4">
                   <button
                     onClick={fetchDatabaseStatus}
@@ -172,11 +183,11 @@ export default function DatabaseManagerPage() {
               </div>
             )}
           </div>
-          
+
           {/* Database Actions */}
           <div className="mb-8">
             <h2 className="text-lg font-medium text-gray-900 mb-4">Database Actions</h2>
-            
+
             <div className="space-y-4">
               <div className="bg-gray-50 rounded-md p-4">
                 <h3 className="font-medium text-gray-700 mb-2">1. Add Foreign Key Constraints</h3>
@@ -184,7 +195,7 @@ export default function DatabaseManagerPage() {
                   This action will add explicit foreign key constraints to your database tables.
                   This helps Supabase understand the relationships between tables.
                 </p>
-                
+
                 <button
                   onClick={addForeignKeys}
                   disabled={loading}
@@ -192,29 +203,62 @@ export default function DatabaseManagerPage() {
                 >
                   {loading ? 'Adding...' : 'Add Foreign Keys'}
                 </button>
-                
+
                 {actionResult && (
-                  <div className="mt-4 bg-green-50 border-l-4 border-green-500 p-4">
-                    <div className="flex">
-                      <div className="flex-shrink-0">
-                        <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                        </svg>
-                      </div>
-                      <div className="ml-3">
-                        <p className="text-sm text-green-700">{actionResult.message}</p>
+                  <div className="mt-4">
+                    <div className="bg-green-50 border-l-4 border-green-500 p-4 mb-4">
+                      <div className="flex">
+                        <div className="flex-shrink-0">
+                          <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                        <div className="ml-3">
+                          <p className="text-sm text-green-700">{actionResult.message}</p>
+                        </div>
                       </div>
                     </div>
+
+                    {actionResult.results && (
+                      <div className="bg-white rounded-md border border-gray-200 overflow-hidden">
+                        <table className="min-w-full divide-y divide-gray-200">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Table</th>
+                              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Message</th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-gray-200">
+                            {actionResult.results.map((result: any, index: number) => (
+                              <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{result.table}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                  {result.success ? (
+                                    <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Success</span>
+                                  ) : (
+                                    <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Failed</span>
+                                  )}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                  {result.message || result.error || 'No message'}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
-              
+
               <div className="bg-gray-50 rounded-md p-4">
                 <h3 className="font-medium text-gray-700 mb-2">2. Test Relationships</h3>
                 <p className="text-sm text-gray-600 mb-4">
                   This action will test the relationships between tables by running queries that join tables.
                 </p>
-                
+
                 <button
                   onClick={testRelationships}
                   disabled={loading}
@@ -222,11 +266,11 @@ export default function DatabaseManagerPage() {
                 >
                   {loading ? 'Testing...' : 'Test Relationships'}
                 </button>
-                
+
                 {testResults && (
                   <div className="mt-4">
                     <h4 className="font-medium text-gray-700 mb-2">Test Results:</h4>
-                    
+
                     <div className="space-y-4">
                       <div className="bg-white p-4 rounded-md border border-gray-200">
                         <h5 className="font-medium text-gray-700 mb-2">Orders with Customers:</h5>
@@ -242,7 +286,7 @@ export default function DatabaseManagerPage() {
                           </div>
                         )}
                       </div>
-                      
+
                       <div className="bg-white p-4 rounded-md border border-gray-200">
                         <h5 className="font-medium text-gray-700 mb-2">Orders with Profiles (Shop & Driver):</h5>
                         {testResults.ordersWithProfiles.error ? (
@@ -263,11 +307,11 @@ export default function DatabaseManagerPage() {
               </div>
             </div>
           </div>
-          
+
           {/* Recommendations */}
           <div className="bg-blue-50 p-4 rounded-md">
             <h2 className="text-lg font-medium text-blue-900 mb-2">Recommendations</h2>
-            
+
             <div className="space-y-3 text-sm text-blue-800">
               <div>
                 <h3 className="font-medium mb-1">1. Fix Foreign Key Relationships</h3>
@@ -276,7 +320,7 @@ export default function DatabaseManagerPage() {
                   Use the "Add Foreign Keys" button above to do this automatically.
                 </p>
               </div>
-              
+
               <div>
                 <h3 className="font-medium mb-1">2. Use Explicit Joins</h3>
                 <p>
@@ -290,7 +334,7 @@ export default function DatabaseManagerPage() {
                   </code>
                 </pre>
               </div>
-              
+
               <div>
                 <h3 className="font-medium mb-1">3. Check RLS Policies</h3>
                 <p>
@@ -298,7 +342,7 @@ export default function DatabaseManagerPage() {
                   You might need to create policies that allow access to related records.
                 </p>
               </div>
-              
+
               <div>
                 <h3 className="font-medium mb-1">4. Use UUID Format</h3>
                 <p>
