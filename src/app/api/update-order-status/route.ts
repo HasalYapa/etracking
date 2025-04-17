@@ -14,19 +14,25 @@ export async function POST(request: Request) {
     }
 
     // Get the current order details first
-    const { data: orderData, error: orderError } = await supabase
+    const { data: orderResults, error: orderError } = await supabase
       .from('orders')
       .select('*')
-      .eq('id', orderId)
-      .single();
+      .eq('id', orderId);
 
     if (orderError) {
       console.error('Error fetching order details:', orderError);
       return NextResponse.json({ success: false, error: orderError.message }, { status: 500 });
     }
 
+    if (!orderResults || orderResults.length === 0) {
+      console.error('Order not found:', orderId);
+      return NextResponse.json({ success: false, error: 'Order not found' }, { status: 404 });
+    }
+
+    const orderData = orderResults[0];
+
     // Update the order status
-    const { data: updatedOrder, error: updateError } = await supabase
+    const { data: updatedResults, error: updateError } = await supabase
       .from('orders')
       .update({
         status,
@@ -34,13 +40,19 @@ export async function POST(request: Request) {
         updated_at: new Date().toISOString()
       })
       .eq('id', orderId)
-      .select()
-      .single();
+      .select();
 
     if (updateError) {
       console.error('Error updating order status:', updateError);
       return NextResponse.json({ success: false, error: updateError.message }, { status: 500 });
     }
+
+    if (!updatedResults || updatedResults.length === 0) {
+      console.error('No order was updated');
+      return NextResponse.json({ success: false, error: 'Failed to update order' }, { status: 500 });
+    }
+
+    const updatedOrder = updatedResults[0];
 
     // Create order history entry
     const { error: historyError } = await supabase

@@ -209,14 +209,17 @@ export default function QRTestPage() {
       if (uuidRegex.test(data.trackingNumber) || data.orderId) {
         const orderId = data.orderId || data.trackingNumber;
 
+        // Use .eq() without .single() to avoid the "JSON object requested" error
         const { data: orderByIdData, error: orderByIdError } = await supabase
           .from('orders')
           .select('*')
-          .eq('id', orderId)
-          .single();
+          .eq('id', orderId);
 
-        if (!orderByIdError && orderByIdData) {
-          console.log('Found order by ID from QR code:', orderByIdData);
+        console.log('Order by ID query result:', { orderByIdData, orderByIdError });
+
+        if (!orderByIdError && orderByIdData && orderByIdData.length > 0) {
+          const orderData = orderByIdData[0]; // Take the first matching order
+          console.log('Found order by ID from QR code:', orderData);
 
           // Update the order status to in_transit
           const response = await fetch('/api/update-order-status', {
@@ -225,7 +228,7 @@ export default function QRTestPage() {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              orderId: orderByIdData.id,
+              orderId: orderData.id,
               status: 'in_transit',
               driverId: profileData.id,
               latitude,
@@ -240,25 +243,27 @@ export default function QRTestPage() {
           }
 
           // Update success message with more details
-          setScanSuccess(`Successfully updated order status for order ${orderByIdData.tracking_number} from ${result.previousStatus} to in_transit`);
+          setScanSuccess(`Successfully updated order status for order ${orderData.tracking_number} from ${result.previousStatus} to in_transit`);
           return;
         } else {
-          console.error('Error finding order by ID from QR code:', orderByIdError);
+          console.error('Error finding order by ID from QR code:', orderByIdError || 'No matching order found');
           // Continue to try by tracking number
         }
       }
 
       // Try to find the order by tracking number
-      const { data: orderData, error: orderError } = await supabase
+      const { data: ordersByTracking, error: orderError } = await supabase
         .from('orders')
         .select('*')
-        .eq('tracking_number', data.trackingNumber)
-        .single();
+        .eq('tracking_number', data.trackingNumber);
 
-      if (orderError) {
+      console.log('Order by tracking number query result:', { ordersByTracking, orderError });
+
+      if (orderError || !ordersByTracking || ordersByTracking.length === 0) {
         throw new Error(`Order with tracking number ${data.trackingNumber} not found`);
       }
 
+      const orderData = ordersByTracking[0]; // Take the first matching order
       console.log('Found order by tracking number:', orderData);
 
       // Update the order status to in_transit
