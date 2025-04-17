@@ -1,35 +1,29 @@
 import { createClient } from '@supabase/supabase-js';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Database } from '../types/supabase';
 
 // Supabase client configuration
 const supabaseUrl = 'https://slujerwtublzuxtzdtyw.supabase.co';
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsdWplcnd0dWJsenV4dHpkdHl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ2NTUzNDYsImV4cCI6MjA2MDIzMTM0Nn0.5irKk2XDrs0ItDWcnN2dOzUBT6KG3Pppg6Slh2fb4CA';
 
-// For server components and API routes
-export const createServerClient = () => {
-  return createClient<Database>(supabaseUrl, supabaseAnonKey, {
+// Create a single Supabase client for the entire application
+// This prevents the "Multiple GoTrueClient instances" warning
+let supabaseInstance: ReturnType<typeof createClient<Database>> | null = null;
+
+// For both client and server components
+export const supabase = (() => {
+  if (supabaseInstance) return supabaseInstance;
+
+  // Create a new instance if one doesn't exist
+  supabaseInstance = createClient<Database>(supabaseUrl, supabaseAnonKey, {
     auth: {
-      persistSession: false,
-      autoRefreshToken: false,
+      persistSession: true,
+      autoRefreshToken: true,
+      storageKey: 'sb-slujerwtublzuxtzdtyw-auth-token',
     },
   });
-};
 
-// For client components - use auth-helpers-nextjs
-export const supabase = typeof window === 'undefined'
-  ? createServerClient()
-  : createClientComponentClient<Database>({
-      supabaseUrl,
-      supabaseKey: supabaseAnonKey,
-      options: {
-        auth: {
-          persistSession: true,
-          autoRefreshToken: true,
-          storageKey: 'sb-slujerwtublzuxtzdtyw-auth-token',
-        },
-      },
-    });
+  return supabaseInstance;
+})();
 
 // Helper functions
 export async function getUserProfile() {

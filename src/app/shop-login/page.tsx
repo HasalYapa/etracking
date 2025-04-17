@@ -67,11 +67,9 @@ export default function ShopLogin() {
       // Use the Next.js router for redirection
       console.log('Redirecting to minimal shop dashboard...');
 
-      // Force a delay to ensure session is properly established
-      await new Promise(resolve => setTimeout(resolve, 500));
-
       // Use router.push for navigation within Next.js
-      router.push('/minimal-shop');
+      // The replace: true option ensures we don't keep the login page in history
+      router.push('/minimal-shop', { replace: true });
     } catch (err: any) {
       console.error('Unexpected error:', err);
       setError(err.message || 'An unexpected error occurred');
