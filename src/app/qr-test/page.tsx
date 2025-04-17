@@ -454,7 +454,11 @@ export default function QRTestPage() {
 
               {!showScanner ? (
                 <button
-                  onClick={() => setShowScanner(true)}
+                  onClick={() => {
+                    setShowScanner(true);
+                    setScanError(null);
+                    setScanSuccess(null);
+                  }}
                   className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
                 >
                   Open Scanner
@@ -462,13 +466,20 @@ export default function QRTestPage() {
               ) : (
                 <div>
                   <button
-                    onClick={() => setShowScanner(false)}
+                    onClick={() => {
+                      setShowScanner(false);
+                      // Give time for the scanner to clean up
+                      setTimeout(() => {
+                        console.log('Scanner cleanup complete');
+                      }, 500);
+                    }}
                     className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors mb-4"
                   >
                     Close Scanner
                   </button>
 
                   <Html5QRScanner
+                    key={`scanner-instance-${Date.now()}`} // Force new instance each time
                     onScan={handleScan}
                     onError={handleScanError}
                   />

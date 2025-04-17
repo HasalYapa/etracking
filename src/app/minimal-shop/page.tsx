@@ -42,11 +42,17 @@ export default function MinimalShopPage() {
     customer_name: '',
     customer_phone: '+94',
     delivery_address: '',
-    tracking_number: generateTrackingNumber()
+    tracking_number: generateTrackingNumber(),
+    autoAssignDriver: false
   });
+
+  // Available drivers state
+  const [availableDrivers, setAvailableDrivers] = useState<any[]>([]);
+  const [loadingDrivers, setLoadingDrivers] = useState(false);
 
   useEffect(() => {
     fetchOrders();
+    fetchAvailableDrivers();
 
     // Set up real-time subscription to orders table
     const subscription = supabase
@@ -81,16 +87,52 @@ export default function MinimalShopPage() {
       })
       .subscribe();
 
+    // Set up real-time subscription to driver availability
+    const driverSubscription = supabase
+      .channel('driver-availability')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'driver_availability',
+      }, (payload) => {
+        console.log('Driver availability update received:', payload);
+        fetchAvailableDrivers();
+      })
+      .subscribe();
+
     // Request notification permission
     if (Notification.permission !== 'granted' && Notification.permission !== 'denied') {
       Notification.requestPermission();
     }
 
     return () => {
-      // Clean up subscription when component unmounts
+      // Clean up subscriptions when component unmounts
       subscription.unsubscribe();
+      driverSubscription.unsubscribe();
     };
+
   }, []);
+
+  // Fetch available drivers
+  const fetchAvailableDrivers = async () => {
+    try {
+      setLoadingDrivers(true);
+
+      const response = await fetch('/api/driver/find-available');
+      const data = await response.json();
+
+      if (data.error) {
+        console.error('Error fetching available drivers:', data.error);
+        return;
+      }
+
+      setAvailableDrivers(data.data || []);
+    } catch (error) {
+      console.error('Error fetching available drivers:', error);
+    } finally {
+      setLoadingDrivers(false);
+    }
+  };
 
   const fetchOrders = async () => {
     try {
@@ -158,6 +200,11 @@ export default function MinimalShopPage() {
         status: 'pending'
       };
 
+      // If auto-assign is enabled, include it in the request
+      if (formData.autoAssignDriver) {
+        orderData.autoAssignDriver = true;
+      }
+
       const response = await fetch('/api/create-custom-order', {
         method: 'POST',
         headers: {
@@ -190,7 +237,8 @@ export default function MinimalShopPage() {
         customer_name: '',
         customer_phone: '+94',
         delivery_address: '',
-        tracking_number: generateTrackingNumber()
+        tracking_number: generateTrackingNumber(),
+        autoAssignDriver: false
       });
 
       setShowOrderForm(false);
@@ -206,12 +254,22 @@ export default function MinimalShopPage() {
     }
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value, type } = e.target as HTMLInputElement;
+
+    // Handle checkbox separately
+    if (type === 'checkbox') {
+      const checked = (e.target as HTMLInputElement).checked;
+      setFormData(prev => ({
+        ...prev,
+        [name]: checked
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
   };
 
   const viewOrderDetails = (order: any) => {
@@ -518,6 +576,33 @@ export default function MinimalShopPage() {
                     readOnly
                   />
                   <p className="text-xs text-gray-500 mt-1">Auto-generated tracking number</p>
+                </div>
+
+                <div>
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="autoAssignDriver"
+                      name="autoAssignDriver"
+                      checked={formData.autoAssignDriver}
+                      onChange={handleInputChange}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <label htmlFor="autoAssignDriver" className="ml-2 block text-sm text-gray-700">
+                      Auto-assign available driver
+                    </label>
+                  </div>
+                  {formData.autoAssignDriver && (
+                    <div className="mt-2 text-sm text-gray-500">
+                      {loadingDrivers ? (
+                        <p>Checking for available drivers...</p>
+                      ) : availableDrivers.length > 0 ? (
+                        <p className="text-green-600">{availableDrivers.length} driver(s) available for assignment</p>
+                      ) : (
+                        <p className="text-yellow-600">No drivers currently available. Order will be created as pending.</p>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 

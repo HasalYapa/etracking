@@ -5,6 +5,7 @@ import Link from 'next/link';
 import RealTimeClock from '@/components/real-time-clock';
 import LogoPlaceholder from '@/components/logo-placeholder';
 import Html5QRScanner from '@/components/Html5QrScanner';
+import DriverNotifications from '@/components/driver-notifications';
 import supabase from '@/utils/supabase-client';
 import { createClient } from '@supabase/supabase-js';
 
@@ -33,6 +34,8 @@ export default function MinimalDriverPage() {
   const [scanSuccess, setScanSuccess] = useState<string | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
   const [currentLocation, setCurrentLocation] = useState<{lat: number, lng: number} | null>(null);
+  const [isAvailable, setIsAvailable] = useState(false);
+  const [availabilityLoading, setAvailabilityLoading] = useState(false);
 
   // Set a timeout to handle stuck loading state
   useEffect(() => {
@@ -60,22 +63,52 @@ export default function MinimalDriverPage() {
     return () => clearTimeout(timeoutId);
   }, [loading]);
 
-  // Get current location
+  // Get current location and update periodically
   useEffect(() => {
     if (navigator.geolocation) {
+      // Get initial location
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          setCurrentLocation({
+          const newLocation = {
             lat: position.coords.latitude,
             lng: position.coords.longitude
-          });
+          };
+          setCurrentLocation(newLocation);
+
+          // If driver is available, update their location in the database
+          if (isAvailable && profile?.id) {
+            updateDriverLocation(profile.id, newLocation.lat, newLocation.lng);
+          }
         },
         (err) => {
           console.error('Error getting location:', err);
         }
       );
+
+      // Set up periodic location updates
+      const locationInterval = setInterval(() => {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const newLocation = {
+              lat: position.coords.latitude,
+              lng: position.coords.longitude
+            };
+            setCurrentLocation(newLocation);
+
+            // If driver is available, update their location in the database
+            if (isAvailable && profile?.id) {
+              updateDriverLocation(profile.id, newLocation.lat, newLocation.lng);
+            }
+          },
+          (err) => {
+            console.error('Error getting location:', err);
+          }
+        );
+      }, 60000); // Update every minute
+
+      return () => clearInterval(locationInterval);
     }
-  }, []);
+  }, [isAvailable, profile]);
 
   // Check for debug mode
   const [debugMode, setDebugMode] = useState(false);
@@ -87,13 +120,13 @@ export default function MinimalDriverPage() {
     setDebugMode(debug === 'true');
   }, []);
 
-  // Set up real-time subscription to orders table
+  // Set up real-time subscription to orders table and driver notifications
   useEffect(() => {
     if (!profile || !profile.id) return;
 
     console.log('MinimalDriverPage: Setting up real-time subscription for driver:', profile.id);
 
-    const subscription = supabase
+    const ordersSubscription = supabase
       .channel('driver-assignments')
       .on('postgres_changes', {
         event: '*',
@@ -132,9 +165,42 @@ export default function MinimalDriverPage() {
       Notification.requestPermission();
     }
 
+    // Also subscribe to driver notifications
+    const notificationsSubscription = supabase
+      .channel('driver-notifications')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'driver_notifications',
+        filter: `driver_id=eq.${profile.id}`,
+      }, (payload) => {
+        console.log('MinimalDriverPage: Notification update received:', payload);
+
+        // If it's a new notification, show a browser notification
+        if (payload.eventType === 'INSERT') {
+          if (Notification.permission === 'granted') {
+            const notification = new Notification('New Order Assignment', {
+              body: payload.new.message,
+              icon: '/favicon.ico'
+            });
+
+            // Auto close after 5 seconds
+            setTimeout(() => notification.close(), 5000);
+          }
+
+          // Refresh assignments
+          loadDriverAssignments(profile.id);
+        }
+      })
+      .subscribe();
+
+    // Check driver availability status
+    fetchDriverAvailability(profile.id);
+
     return () => {
-      // Clean up subscription when component unmounts
-      subscription.unsubscribe();
+      // Clean up subscriptions when component unmounts
+      ordersSubscription.unsubscribe();
+      notificationsSubscription.unsubscribe();
     };
   }, [profile]);
 
@@ -241,12 +307,12 @@ export default function MinimalDriverPage() {
           const driverAssignments = result.assignments || [];
           setStats({
             total: driverAssignments.length,
-            pending: driverAssignments.filter(order => order.status === 'assigned' || order.status === 'pending').length,
-            in_transit: driverAssignments.filter(order =>
+            pending: driverAssignments.filter((order: any) => order.status === 'assigned' || order.status === 'pending').length,
+            in_transit: driverAssignments.filter((order: any) =>
               order.status === 'in_transit' ||
               order.status === 'picked_up'
             ).length,
-            delivered: driverAssignments.filter(order => order.status === 'delivered').length
+            delivered: driverAssignments.filter((order: any) => order.status === 'delivered').length
           });
 
           if (isMounted) setLoading(false);
@@ -414,7 +480,7 @@ export default function MinimalDriverPage() {
         console.log(`MinimalDriverPage: API found ${ordersData?.length || 0} orders for driver ID ${driverId}`);
 
         // Transform the data to match the expected format
-        const driverAssignments = ordersData?.map(order => ({
+        const driverAssignments = ordersData?.map((order: any) => ({
           ...order,
           customer_name: order.customers?.name || 'Unknown',
           customer_phone: order.customers?.phone || 'N/A',
@@ -426,12 +492,12 @@ export default function MinimalDriverPage() {
         // Calculate stats
         setStats({
           total: driverAssignments.length,
-          pending: driverAssignments.filter(order => order.status === 'assigned' || order.status === 'pending').length,
-          in_transit: driverAssignments.filter(order =>
+          pending: driverAssignments.filter((order: any) => order.status === 'assigned' || order.status === 'pending').length,
+          in_transit: driverAssignments.filter((order: any) =>
             order.status === 'in_transit' ||
             order.status === 'picked_up'
           ).length,
-          delivered: driverAssignments.filter(order => order.status === 'delivered').length
+          delivered: driverAssignments.filter((order: any) => order.status === 'delivered').length
         });
 
         return; // Exit if API call was successful
@@ -482,8 +548,111 @@ export default function MinimalDriverPage() {
     }
   };
 
+  // Fetch driver availability status
+  const fetchDriverAvailability = async (_driverId: string) => {
+    try {
+      const response = await fetch('/api/driver/availability');
+      const data = await response.json();
+
+      if (data.error) {
+        console.error('Error fetching driver availability:', data.error);
+        return;
+      }
+
+      if (data.data) {
+        setIsAvailable(data.data.available);
+      }
+    } catch (error) {
+      console.error('Error fetching driver availability:', error);
+    }
+  };
+
+  // Update driver location in the database
+  const updateDriverLocation = async (_driverId: string, lat: number, lng: number) => {
+    try {
+      await fetch('/api/driver/availability', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          available: isAvailable,
+          latitude: lat,
+          longitude: lng
+        })
+      });
+    } catch (error) {
+      console.error('Error updating driver location:', error);
+    }
+  };
+
+  // Toggle driver availability
+  const toggleAvailability = async () => {
+    try {
+      setAvailabilityLoading(true);
+
+      // Get current location
+      let lat = null;
+      let lng = null;
+      if (currentLocation) {
+        lat = currentLocation.lat;
+        lng = currentLocation.lng;
+      }
+
+      const response = await fetch('/api/driver/availability', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          available: !isAvailable,
+          latitude: lat,
+          longitude: lng
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.error) {
+        console.error('Error toggling availability:', data.error);
+        alert('Failed to update availability status. Please try again.');
+      } else {
+        setIsAvailable(!isAvailable);
+
+        // Show notification
+        if (Notification.permission === 'granted') {
+          const notification = new Notification('Status Updated', {
+            body: `You are now ${!isAvailable ? 'available' : 'unavailable'} for new orders`,
+            icon: '/favicon.ico'
+          });
+
+          // Auto close after 5 seconds
+          setTimeout(() => notification.close(), 5000);
+        }
+      }
+    } catch (error) {
+      console.error('Error toggling availability:', error);
+      alert('Failed to update availability status. Please try again.');
+    } finally {
+      setAvailabilityLoading(false);
+    }
+  };
+
   const handleSignOut = async () => {
     try {
+      // Set driver as unavailable before signing out
+      if (isAvailable && profile?.id) {
+        await fetch('/api/driver/availability', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            available: false
+          })
+        });
+      }
+
       console.log('MinimalDriverPage: Signing out...');
       await supabase.auth.signOut();
 
@@ -961,21 +1130,59 @@ export default function MinimalDriverPage() {
               <span className="text-gray-600">
                 Welcome, {profile?.name || user?.user_metadata?.name || 'Driver'}
               </span>
-              <button
-                onClick={handleSignOut}
-                className="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors shadow-sm flex items-center"
-              >
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={toggleAvailability}
+                  disabled={availabilityLoading}
+                  className={`px-4 py-2 text-white text-sm font-medium rounded-lg transition-colors shadow-sm flex items-center ${isAvailable ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-500 hover:bg-gray-600'}`}
+                >
+                  {availabilityLoading ? (
+                    <span className="flex items-center">
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Updating...
+                    </span>
+                  ) : (
+                    <span className="flex items-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 mr-1 ${isAvailable ? 'text-white' : 'text-gray-200'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      {isAvailable ? 'Available' : 'Go Online'}
+                    </span>
+                  )}
+                </button>
+                <button
+                  onClick={handleSignOut}
+                  className="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors shadow-sm flex items-center"
+                >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                 </svg>
                 Sign Out
               </button>
+              </div>
             </div>
           </div>
         </header>
 
         {/* Order Statistics */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+          <div className="bg-white shadow-md rounded-xl p-5 border-l-4 border-green-500">
+            <div className="flex justify-between items-center">
+              <div>
+                <p className="text-sm font-medium text-gray-500">Status</p>
+                <p className="text-2xl font-bold text-gray-800">{isAvailable ? 'Online' : 'Offline'}</p>
+              </div>
+              <div className={`p-3 ${isAvailable ? 'bg-green-100' : 'bg-gray-100'} rounded-full`}>
+                <svg xmlns="http://www.w3.org/2000/svg" className={`h-6 w-6 ${isAvailable ? 'text-green-600' : 'text-gray-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.636 18.364a9 9 0 010-12.728m12.728 0a9 9 0 010 12.728m-9.9-2.829a5 5 0 010-7.07m7.072 0a5 5 0 010 7.07M13 12a1 1 0 11-2 0 1 1 0 012 0z" />
+                </svg>
+              </div>
+            </div>
+          </div>
+
           <div className="bg-white shadow-md rounded-xl p-5 border-l-4 border-blue-500">
             <div className="flex justify-between items-center">
               <div>
@@ -1033,6 +1240,23 @@ export default function MinimalDriverPage() {
             </div>
           </div>
         </div>
+
+        {/* Notifications Section */}
+        {profile && profile.id && (
+          <div className="mb-6">
+            <DriverNotifications
+              driverId={profile.id}
+              onAccept={(_notification) => {
+                // Refresh assignments after accepting
+                loadDriverAssignments(profile.id);
+              }}
+              onReject={(_notification) => {
+                // Refresh assignments after rejecting
+                loadDriverAssignments(profile.id);
+              }}
+            />
+          </div>
+        )}
 
         {/* QR Code Scanner Section */}
         <div className="mb-6">
