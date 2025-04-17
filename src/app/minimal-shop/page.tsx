@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { QRCodeSVG } from 'qrcode.react';
 import RealTimeClock from '@/components/real-time-clock';
 import LogoPlaceholder from '@/components/logo-placeholder';
+import { supabase } from '@/lib/supabase';
 
 // Hardcoded shop owner ID (Sampath)
 const shopOwnerId = '9939c3f3-e3fc-4af7-9ecd-31ab535bce59';
@@ -41,6 +42,49 @@ export default function MinimalShopPage() {
 
   useEffect(() => {
     fetchOrders();
+
+    // Set up real-time subscription to orders table
+    const subscription = supabase
+      .channel('orders-changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'orders',
+        filter: `shop_id=eq.${shopOwnerId}`,
+      }, (payload) => {
+        console.log('Real-time update received:', payload);
+
+        // Refresh orders when any change happens
+        fetchOrders();
+
+        // Show notification for status changes
+        if (payload.eventType === 'UPDATE' && payload.new && payload.old) {
+          const oldStatus = payload.old.status;
+          const newStatus = payload.new.status;
+
+          if (oldStatus !== newStatus) {
+            // Create a notification
+            const notification = new Notification('Order Status Updated', {
+              body: `Order ${payload.new.tracking_number} status changed from ${oldStatus} to ${newStatus}`,
+              icon: '/favicon.ico'
+            });
+
+            // Auto close after 5 seconds
+            setTimeout(() => notification.close(), 5000);
+          }
+        }
+      })
+      .subscribe();
+
+    // Request notification permission
+    if (Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+      Notification.requestPermission();
+    }
+
+    return () => {
+      // Clean up subscription when component unmounts
+      subscription.unsubscribe();
+    };
   }, []);
 
   const fetchOrders = async () => {

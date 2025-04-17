@@ -78,6 +78,57 @@ export default function MinimalDriverPage() {
     setDebugMode(debug === 'true');
   }, []);
 
+  // Set up real-time subscription to orders table
+  useEffect(() => {
+    if (!profile || !profile.id) return;
+
+    console.log('MinimalDriverPage: Setting up real-time subscription for driver:', profile.id);
+
+    const subscription = supabase
+      .channel('driver-assignments')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'orders',
+        filter: `driver_id=eq.${profile.id}`,
+      }, (payload) => {
+        console.log('MinimalDriverPage: Real-time update received:', payload);
+
+        // Refresh assignments when any change happens
+        loadDriverAssignments(profile.id);
+
+        // Show notification for status changes
+        if (payload.eventType === 'UPDATE' && payload.new && payload.old) {
+          const oldStatus = payload.old.status;
+          const newStatus = payload.new.status;
+
+          if (oldStatus !== newStatus) {
+            // Create a notification
+            if (Notification.permission === 'granted') {
+              const notification = new Notification('Order Status Updated', {
+                body: `Order ${payload.new.tracking_number} status changed from ${oldStatus} to ${newStatus}`,
+                icon: '/favicon.ico'
+              });
+
+              // Auto close after 5 seconds
+              setTimeout(() => notification.close(), 5000);
+            }
+          }
+        }
+      })
+      .subscribe();
+
+    // Request notification permission
+    if (Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+      Notification.requestPermission();
+    }
+
+    return () => {
+      // Clean up subscription when component unmounts
+      subscription.unsubscribe();
+    };
+  }, [profile]);
+
   useEffect(() => {
     let isMounted = true;
 
@@ -492,11 +543,10 @@ export default function MinimalDriverPage() {
             throw new Error(result.error || 'Failed to update order status');
           }
 
-          // Update success message
-          setScanSuccess(`Successfully updated order status for order ID: ${orderByIdData.id}`);
+          // Update success message with more details
+          setScanSuccess(`Successfully updated order status for order ${orderByIdData.tracking_number} from ${result.previousStatus} to in_transit`);
 
-          // Refresh the assignments list
-          await loadDriverAssignments(profile.id);
+          // No need to manually refresh assignments as the real-time subscription will handle it
 
           // Close the scanner after a delay
           setTimeout(() => {
@@ -562,11 +612,8 @@ export default function MinimalDriverPage() {
           throw new Error(result.error || 'Failed to update order status');
         }
 
-        // Update success message
-        setScanSuccess(`Successfully updated order status for order ID: ${orderByIdData.id}`);
-
-        // Refresh the assignments list
-        await loadDriverAssignments(profile.id);
+        // Update success message with more details
+        setScanSuccess(`Successfully updated order status for order ${orderByIdData.tracking_number} from ${result.previousStatus} to in_transit`);
 
         // Close the scanner after a delay
         setTimeout(() => {
@@ -600,11 +647,8 @@ export default function MinimalDriverPage() {
         throw new Error(result.error || 'Failed to update order status');
       }
 
-      // Update success message
-      setScanSuccess(`Successfully updated order status for tracking number: ${trackingNumber}`);
-
-      // Refresh the assignments list
-      await loadDriverAssignments(profile.id);
+      // Update success message with more details
+      setScanSuccess(`Successfully updated order status for order ${orderData.tracking_number} from ${result.previousStatus} to in_transit`);
 
       // Close the scanner after a delay
       setTimeout(() => {
@@ -627,40 +671,50 @@ export default function MinimalDriverPage() {
     try {
       setLoading(true);
 
-      // Update the order status in Supabase
-      const { error: updateError } = await supabase
-        .from('orders')
-        .update({
-          status: newStatus,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', orderId);
-
-      if (updateError) {
-        console.error('Error updating order:', updateError);
-        throw updateError;
+      // Get current location if available
+      let latitude = null;
+      let longitude = null;
+      if (currentLocation) {
+        latitude = currentLocation.lat;
+        longitude = currentLocation.lng;
       }
 
-      // Create order history
-      const { error: historyError } = await supabase
-        .from('order_history')
-        .insert({
-          order_id: orderId,
+      // Use the API to update the order status
+      const response = await fetch('/api/update-order-status', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          orderId,
           status: newStatus,
-          notes: `Status updated to ${newStatus}`,
-          created_at: new Date().toISOString(),
-          updated_by: profile.id
+          driverId: profile.id,
+          latitude,
+          longitude,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to update order status');
+      }
+
+      // No need to manually refresh assignments as the real-time subscription will handle it
+
+      // Show a toast notification instead of an alert
+      if (Notification.permission === 'granted') {
+        const notification = new Notification('Order Status Updated', {
+          body: `Order status changed from ${result.previousStatus} to ${newStatus}`,
+          icon: '/favicon.ico'
         });
 
-      if (historyError) {
-        console.error('Error creating order history:', historyError);
-        // Continue anyway, this is not critical
+        // Auto close after 5 seconds
+        setTimeout(() => notification.close(), 5000);
+      } else {
+        // Fallback to alert if notifications are not allowed
+        alert(`Delivery status updated to ${newStatus}`);
       }
-
-      // Reload assignments
-      await loadDriverAssignments(profile.id);
-
-      alert(`Delivery status updated to ${newStatus}`);
     } catch (err: any) {
       console.error('Error updating status:', err);
       alert(`Error updating status: ${err.message}`);
