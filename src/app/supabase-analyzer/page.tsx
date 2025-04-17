@@ -17,65 +17,22 @@ export default function SupabaseAnalyzerPage() {
   const [foreignKeys, setForeignKeys] = useState<any[]>([]);
 
   useEffect(() => {
-    setupAnalyzer();
+    fetchTables();
   }, []);
-
-  const setupAnalyzer = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      // Call the setup API to create necessary functions
-      const response = await fetch('/api/setup-analyzer');
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to set up analyzer');
-      }
-
-      // If setup was successful, fetch tables
-      fetchTables();
-    } catch (err: any) {
-      console.error('Error setting up analyzer:', err);
-      setError(err.message);
-      setLoading(false);
-    }
-  };
 
   const fetchTables = async () => {
     try {
       setLoading(true);
 
-      // Get list of tables using raw SQL query
-      const { data: tablesData, error: tablesError } = await supabase
-        .rpc('get_tables');
+      // Get list of tables from our API
+      const response = await fetch('/api/setup-analyzer');
+      const result = await response.json();
 
-      if (tablesError) {
-        // Fallback: Try to create the function if it doesn't exist
-        console.log('Creating get_tables function...');
-        await supabase.rpc('create_get_tables_function');
-
-        // Try again
-        const { data: retryData, error: retryError } = await supabase.rpc('get_tables');
-
-        if (retryError) {
-          // Last resort: hardcode some common tables
-          console.log('Using hardcoded tables as fallback');
-          return {
-            data: [
-              { table_name: 'orders' },
-              { table_name: 'customers' },
-              { table_name: 'profiles' },
-              { table_name: 'order_history' }
-            ]
-          };
-        }
-
-        return { data: retryData };
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to get tables');
       }
 
-      if (tablesError) throw tablesError;
-
+      const tablesData = result.tables;
       const tableNames = tablesData.map(t => t.table_name);
       setTables(tableNames);
 
@@ -120,15 +77,45 @@ export default function SupabaseAnalyzerPage() {
         }
       ];
 
-      const fkError = null;
-
-      if (fkError) throw fkError;
-
       setForeignKeys(fkData);
 
     } catch (err: any) {
       console.error('Error fetching schema:', err);
       setError(err.message);
+
+      // Fallback to hardcoded tables
+      const hardcodedTables = [
+        { table_name: 'orders' },
+        { table_name: 'customers' },
+        { table_name: 'profiles' },
+        { table_name: 'order_history' }
+      ];
+
+      setTables(hardcodedTables.map(t => t.table_name));
+
+      // Set hardcoded relationships
+      const fkData = [
+        {
+          constraint_name: 'orders_customer_id_fkey',
+          table_name: 'orders',
+          column_name: 'customer_id',
+          referenced_table_name: { referenced_table_name: 'customers' }
+        },
+        {
+          constraint_name: 'orders_driver_id_fkey',
+          table_name: 'orders',
+          column_name: 'driver_id',
+          referenced_table_name: { referenced_table_name: 'profiles' }
+        },
+        {
+          constraint_name: 'customers_shop_id_fkey',
+          table_name: 'customers',
+          column_name: 'shop_id',
+          referenced_table_name: { referenced_table_name: 'profiles' }
+        }
+      ];
+
+      setForeignKeys(fkData);
     } finally {
       setLoading(false);
     }
