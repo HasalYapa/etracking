@@ -75,8 +75,8 @@ export default function MinimalDriverPage() {
           };
           setCurrentLocation(newLocation);
 
-          // If driver is available, update their location in the database
-          if (isAvailable && profile?.id) {
+          // Always update driver location in the database if we have a profile
+          if (profile?.id) {
             updateDriverLocation(profile.id, newLocation.lat, newLocation.lng);
           }
         },
@@ -95,8 +95,8 @@ export default function MinimalDriverPage() {
             };
             setCurrentLocation(newLocation);
 
-            // If driver is available, update their location in the database
-            if (isAvailable && profile?.id) {
+            // Always update driver location in the database if we have a profile
+            if (profile?.id) {
               updateDriverLocation(profile.id, newLocation.lat, newLocation.lng);
             }
           },

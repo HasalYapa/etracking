@@ -37,9 +37,9 @@ export async function GET(request: Request) {
 
     // Get driver availability
     const { data: availability, error } = await supabaseAdmin
-      .from('driver_availability')
+      .from('drivers')
       .select('*')
-      .eq('driver_id', driverId)
+      .eq('id', driverId)
       .single();
 
     if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned" error
@@ -50,11 +50,11 @@ export async function GET(request: Request) {
     // If no availability record exists, create one
     if (!availability) {
       const { data: newAvailability, error: insertError } = await supabaseAdmin
-        .from('driver_availability')
-        .insert({
-          driver_id: driverId,
-          available: false
-          // Remove last_active as it has a default value in the database
+        .from('drivers')
+        .upsert({
+          id: driverId,
+          available: false,
+          last_active: new Date().toISOString()
         })
         .select()
         .single();
@@ -107,22 +107,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Available status must be a boolean' }, { status: 400 });
     }
 
-    // Update driver availability
-    const updateData: any = {
-      driver_id: driverId,
-      available
-      // Remove last_active as it has a default value in the database
-    };
-
-    // Add location data if provided
-    if (latitude !== undefined && longitude !== undefined) {
-      updateData.latitude = latitude;
-      updateData.longitude = longitude;
-    }
+    // No need for updateData object anymore as we're using inline update
 
     const { data: updatedAvailability, error } = await supabaseAdmin
-      .from('driver_availability')
-      .upsert(updateData)
+      .from('drivers')
+      .update({
+        available,
+        last_active: new Date().toISOString(),
+        ...(latitude !== undefined && longitude !== undefined ? { latitude, longitude } : {})
+      })
+      .eq('id', driverId)
       .select()
       .single();
 

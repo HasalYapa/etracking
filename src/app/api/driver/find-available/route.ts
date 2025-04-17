@@ -60,10 +60,10 @@ export async function GET(request: Request) {
 
     // Get available drivers
     const { data: availableDrivers, error } = await supabaseAdmin
-      .from('driver_availability')
+      .from('drivers')
       .select(`
         *,
-        driver:profiles(id, name, email, phone)
+        profiles:profiles(id, name, email, phone)
       `)
       .eq('available', true)
       .order('last_active', { ascending: false })
@@ -144,10 +144,10 @@ export async function POST(request: Request) {
 
     // Get available drivers
     const { data: availableDrivers, error } = await supabaseAdmin
-      .from('driver_availability')
+      .from('drivers')
       .select(`
         *,
-        driver:profiles(id, name, email, phone)
+        profiles:profiles(id, name, email, phone)
       `)
       .eq('available', true)
       .order('last_active', { ascending: false })
