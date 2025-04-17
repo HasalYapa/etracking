@@ -1,0 +1,616 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { createClient } from '@supabase/supabase-js';
+import RealTimeClock from '@/components/real-time-clock';
+import LogoPlaceholder from '@/components/logo-placeholder';
+import Html5QRScanner from '@/components/Html5QrScanner';
+
+// Create a Supabase client
+const supabaseUrl = 'https://slujerwtublzuxtzdtyw.supabase.co';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsdWplcnd0dWJsenV4dHpkdHl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ2NTUzNDYsImV4cCI6MjA2MDIzMTM0Nn0.5irKk2XDrs0ItDWcnN2dOzUBT6KG3Pppg6Slh2fb4CA';
+
+const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+    storageKey: 'supabase.auth.token',
+  },
+});
+
+export default function MinimalDriverPage() {
+  const [user, setUser] = useState<any>(null);
+  const [profile, setProfile] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [assignments, setAssignments] = useState<any[]>([]);
+  const [stats, setStats] = useState({
+    total: 0,
+    pending: 0,
+    in_transit: 0,
+    delivered: 0
+  });
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [scanResult, setScanResult] = useState<any>(null);
+  const [scanSuccess, setScanSuccess] = useState<string | null>(null);
+  const [scanError, setScanError] = useState<string | null>(null);
+  const [currentLocation, setCurrentLocation] = useState<{lat: number, lng: number} | null>(null);
+
+  // Get current location
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setCurrentLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          });
+        },
+        (err) => {
+          console.error('Error getting location:', err);
+        }
+      );
+    }
+  }, []);
+
+  useEffect(() => {
+    async function getSession() {
+      try {
+        setLoading(true);
+
+        // Get session
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+        if (sessionError) {
+          throw sessionError;
+        }
+
+        if (!session) {
+          setError('No active session. Please log in.');
+          return;
+        }
+
+        console.log('Session found:', session);
+        setUser(session.user);
+
+        // Get profile
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+
+        if (profileError) {
+          console.error('Error fetching profile:', profileError);
+          setError('Error fetching profile. Please try again.');
+          return;
+        } else {
+          console.log('Profile fetched:', profileData);
+          setProfile(profileData);
+
+          // Verify this is a driver
+          if (profileData.role !== 'driver') {
+            setError('Access denied. This dashboard is for drivers only.');
+            return;
+          }
+
+          // Load assignments for this driver
+          await loadDriverAssignments(profileData.id);
+        }
+      } catch (err: any) {
+        console.error('Error:', err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    getSession();
+  }, []);
+
+  const loadDriverAssignments = async (driverId: string) => {
+    try {
+      console.log('Loading assignments for driver ID:', driverId);
+
+      // Fetch real orders from Supabase
+      const { data: ordersData, error } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          customers(*)
+        `)
+        .eq('driver_id', driverId)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching orders:', error);
+        throw error;
+      }
+
+      console.log(`Found ${ordersData?.length || 0} orders for driver ID ${driverId}`);
+      console.log('Orders data:', ordersData);
+
+      // Transform the data to match the expected format
+      const driverAssignments = ordersData?.map(order => ({
+        ...order,
+        customer_name: order.customers?.name || 'Unknown',
+        customer_phone: order.customers?.phone || 'N/A',
+        items: order.items || order.delivery_notes || 'No items specified',
+      })) || [];
+
+      setAssignments(driverAssignments);
+
+      // Calculate stats
+      setStats({
+        total: driverAssignments.length,
+        pending: driverAssignments.filter(order => order.status === 'assigned' || order.status === 'pending').length,
+        in_transit: driverAssignments.filter(order =>
+          order.status === 'in_transit' ||
+          order.status === 'picked_up'
+        ).length,
+        delivered: driverAssignments.filter(order => order.status === 'delivered').length
+      });
+    } catch (err) {
+      console.error('Error loading driver assignments:', err);
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await supabase.auth.signOut();
+      window.location.href = '/driver-login';
+    } catch (err) {
+      console.error('Error signing out:', err);
+    }
+  };
+
+  // Handle QR code scan
+  const handleScan = async (data: { trackingNumber: string; location: string; driverPhone?: string }) => {
+    try {
+      console.log('QR code scanned with data:', data);
+      setScanResult(data);
+      setScanError(null);
+      setScanSuccess(null);
+
+      if (!profile) {
+        setScanError('You must be logged in to update order status.');
+        return;
+      }
+
+      // Get current location if available
+      let latitude = null;
+      let longitude = null;
+      if (currentLocation) {
+        latitude = currentLocation.lat;
+        longitude = currentLocation.lng;
+      }
+
+      // Show processing message
+      setScanSuccess('Processing scan... Please wait.');
+
+      // Find the order by tracking number
+      const { data: orderData, error: orderError } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('tracking_number', data.trackingNumber)
+        .single();
+
+      if (orderError) {
+        console.error('Error finding order:', orderError);
+        setScanError(`Order with tracking number ${data.trackingNumber} not found.`);
+        return;
+      }
+
+      // Update the order status to in_transit
+      const response = await fetch('/api/update-order-status', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          orderId: orderData.id,
+          status: 'in_transit',
+          driverId: profile.id,
+          latitude,
+          longitude,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to update order status');
+      }
+
+      // Update success message
+      setScanSuccess(`Successfully updated order status for tracking number: ${data.trackingNumber}`);
+
+      // Refresh the assignments list
+      await loadDriverAssignments(profile.id);
+
+      // Close the scanner after a delay
+      setTimeout(() => {
+        setScannerOpen(false);
+        setScanSuccess(null);
+      }, 3000);
+    } catch (err: any) {
+      console.error('Error processing QR code:', err);
+      setScanError(err.message || 'An error occurred while updating the order status');
+    }
+  };
+
+  // Handle scan error
+  const handleScanError = (errorMessage: string) => {
+    setScanError(errorMessage);
+    setScanResult(null);
+  };
+
+  const handleUpdateStatus = async (orderId: string, newStatus: string) => {
+    try {
+      setLoading(true);
+
+      // Update the order status in Supabase
+      const { error: updateError } = await supabase
+        .from('orders')
+        .update({
+          status: newStatus,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', orderId);
+
+      if (updateError) {
+        console.error('Error updating order:', updateError);
+        throw updateError;
+      }
+
+      // Create order history
+      const { error: historyError } = await supabase
+        .from('order_history')
+        .insert({
+          order_id: orderId,
+          status: newStatus,
+          notes: `Status updated to ${newStatus}`,
+          created_at: new Date().toISOString(),
+          updated_by: profile.id
+        });
+
+      if (historyError) {
+        console.error('Error creating order history:', historyError);
+        // Continue anyway, this is not critical
+      }
+
+      // Reload assignments
+      await loadDriverAssignments(profile.id);
+
+      alert(`Delivery status updated to ${newStatus}`);
+    } catch (err: any) {
+      console.error('Error updating status:', err);
+      alert(`Error updating status: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="flex flex-col items-center">
+          <svg className="animate-spin h-12 w-12 text-blue-600 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-lg shadow">
+          <div>
+            <h2 className="text-center text-3xl font-extrabold text-gray-900">
+              Driver Dashboard
+            </h2>
+            <p className="mt-2 text-center text-sm text-gray-600">
+              Authentication Error
+            </p>
+          </div>
+
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+            <span className="block sm:inline">{error}</span>
+          </div>
+
+          <div className="mt-8">
+            <Link href="/driver-login" className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+              Go to Login
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6 w-full">
+        <header className="bg-white shadow-md rounded-xl p-5 mb-8">
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div className="flex items-center">
+              <div className="bg-blue-600 text-white p-2 rounded-lg mr-3">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
+                </svg>
+              </div>
+              <h1 className="text-2xl font-bold text-gray-800">Driver Dashboard</h1>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-gray-600">
+                Welcome, {profile?.name || user?.user_metadata?.name || 'Driver'}
+              </span>
+              <button
+                onClick={handleSignOut}
+                className="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors shadow-sm flex items-center"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                Sign Out
+              </button>
+            </div>
+          </div>
+        </header>
+
+        {/* Order Statistics */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div className="bg-white shadow-md rounded-xl p-5 border-l-4 border-blue-500">
+            <div className="flex justify-between items-center">
+              <div>
+                <p className="text-sm font-medium text-gray-500">Total Assignments</p>
+                <p className="text-2xl font-bold text-gray-800">{stats.total}</p>
+              </div>
+              <div className="p-3 bg-blue-100 rounded-full">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white shadow-md rounded-xl p-5 border-l-4 border-yellow-500">
+            <div className="flex justify-between items-center">
+              <div>
+                <p className="text-sm font-medium text-gray-500">Pending Pickup</p>
+                <p className="text-2xl font-bold text-gray-800">{stats.pending}</p>
+              </div>
+              <div className="p-3 bg-yellow-100 rounded-full">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white shadow-md rounded-xl p-5 border-l-4 border-blue-500">
+            <div className="flex justify-between items-center">
+              <div>
+                <p className="text-sm font-medium text-gray-500">In Transit</p>
+                <p className="text-2xl font-bold text-gray-800">{stats.in_transit}</p>
+              </div>
+              <div className="p-3 bg-blue-100 rounded-full">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white shadow-md rounded-xl p-5 border-l-4 border-green-500">
+            <div className="flex justify-between items-center">
+              <div>
+                <p className="text-sm font-medium text-gray-500">Delivered</p>
+                <p className="text-2xl font-bold text-gray-800">{stats.delivered}</p>
+              </div>
+              <div className="p-3 bg-green-100 rounded-full">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* QR Code Scanner Section */}
+        <div className="mb-6">
+          <button
+            onClick={() => setScannerOpen(!scannerOpen)}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-lg flex items-center justify-center gap-2 mb-4 transition-colors shadow-sm"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+            </svg>
+            {scannerOpen ? 'Hide QR Scanner' : 'Scan QR Code'}
+          </button>
+
+          {scannerOpen && (
+            <div className="bg-white rounded-lg shadow-md p-6 mb-4">
+              <h2 className="text-xl font-bold mb-4">Scan Order QR Code</h2>
+
+              {scanError && (
+                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                  {scanError}
+                </div>
+              )}
+
+              {scanSuccess && (
+                <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+                  {scanSuccess}
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  {/* Only render the scanner component when the scanner is open */}
+                  {scannerOpen && (
+                    <Html5QRScanner
+                      onScan={handleScan}
+                      onError={handleScanError}
+                    />
+                  )}
+                </div>
+
+                <div>
+                  <div className="bg-blue-50 rounded-lg p-4">
+                    <h3 className="font-medium text-blue-800 mb-2">Scan Instructions:</h3>
+                    <ol className="list-decimal list-inside space-y-2 text-gray-700">
+                      <li>Position the QR code within the scanner frame</li>
+                      <li>Hold steady until the code is recognized</li>
+                      <li>Once scanned, the order status will update automatically</li>
+                    </ol>
+                  </div>
+
+                  {scanResult && (
+                    <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                      <h3 className="font-medium text-gray-800 mb-2">Scan Result:</h3>
+                      <div className="space-y-1 text-sm">
+                        <p><strong>Order ID:</strong> {scanResult.trackingNumber}</p>
+                        <p><strong>Dispatch Location:</strong> {scanResult.location}</p>
+                        {scanResult.driverPhone && (
+                          <p><strong>Driver Contact:</strong> {scanResult.driverPhone}</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="bg-white shadow-md rounded-xl p-5">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
+            <h2 className="text-xl font-semibold text-gray-800">My Assignments</h2>
+            <div className="relative">
+              <select
+                value={statusFilter || 'all'}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="appearance-none px-4 py-2 pr-8 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+              >
+                <option value="all">All Status</option>
+                <option value="pending">Pending</option>
+                <option value="assigned">Assigned</option>
+                <option value="picked_up">Picked Up</option>
+                <option value="in_transit">In Transit</option>
+                <option value="delivered">Delivered</option>
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                  <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          {loading ? (
+            <div className="flex justify-center items-center h-60">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-3"></div>
+                <p className="text-gray-500">Loading assignments...</p>
+              </div>
+            </div>
+          ) : assignments.length === 0 ? (
+            <div className="bg-gray-50 rounded-lg p-8 text-center">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-gray-400 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+              </svg>
+              <p className="text-gray-500 text-lg">No assignments found</p>
+              <p className="text-gray-400 mt-1">Check back later for new deliveries</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto rounded-lg border border-gray-200">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tracking #</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Address</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {assignments
+                    .filter(order => statusFilter === 'all' || order.status === statusFilter)
+                    .map((assignment) => (
+                    <tr key={assignment.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-blue-600">{assignment.tracking_number}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm">
+                        {assignment.customer_name}<br />
+                        <span className="text-xs text-gray-500">{assignment.customer_phone}</span>
+                      </td>
+                      <td className="px-4 py-3 text-sm">{assignment.delivery_address}</td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full
+                          ${assignment.status === 'pending' || assignment.status === 'assigned' ? 'bg-yellow-100 text-yellow-800' :
+                            assignment.status === 'picked_up' || assignment.status === 'in_transit' ? 'bg-blue-100 text-blue-800' :
+                            assignment.status === 'delivered' ? 'bg-green-100 text-green-800' :
+                            'bg-red-100 text-red-800'}`}>
+                          {assignment.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm">
+                        <div className="flex space-x-2">
+                          {(assignment.status === 'pending' || assignment.status === 'assigned') && (
+                            <button
+                              onClick={() => handleUpdateStatus(assignment.id, 'in_transit')}
+                              className="px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+                            >
+                              Pick Up
+                            </button>
+                          )}
+                          {(assignment.status === 'in_transit' || assignment.status === 'picked_up') && (
+                            <button
+                              onClick={() => handleUpdateStatus(assignment.id, 'delivered')}
+                              className="px-2 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors"
+                            >
+                              Deliver
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Footer */}
+      <footer className="bg-white border-t border-gray-200 py-3 mt-auto w-full">
+        <div className="w-full px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 items-center">
+            <div className="flex justify-center md:justify-start mb-3 md:mb-0">
+              <LogoPlaceholder />
+            </div>
+            <div className="flex justify-center mb-3 md:mb-0">
+              <span className="text-sm text-gray-600">© {new Date().getFullYear()} etracking.store. All rights reserved.</span>
+            </div>
+            <div className="flex justify-center md:justify-end">
+              <RealTimeClock />
+            </div>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+}
