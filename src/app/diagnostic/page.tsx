@@ -373,6 +373,10 @@ export default function DiagnosticPage() {
                 Minimal Driver Page
               </Link>
 
+              <Link href="/supabase-analyzer" className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500">
+                Supabase Query Analyzer
+              </Link>
+
               <Link href="/" className="inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                 Home Page
               </Link>
