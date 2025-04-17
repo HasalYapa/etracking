@@ -142,18 +142,30 @@ export default function SupabaseAnalyzerPage() {
       for (const fk of tableRelationships.filter(fk => fk.table_name === tableName)) {
         const referencedTable = fk.referenced_table_name?.referenced_table_name;
         if (referencedTable) {
+          // Generate examples with explicit join conditions
           testQueries.push({
-            name: `${tableName} with ${referencedTable} (incorrect)`,
+            name: `${tableName} with ${referencedTable} (incorrect - no join)`,
             query: `.from('${tableName}').select('*, ${referencedTable}(*)')`,
             correct: false,
-            relationship: `${tableName}.${fk.column_name} -> ${referencedTable}`
+            relationship: `${tableName}.${fk.column_name} -> ${referencedTable}`,
+            note: 'This will fail if the relationship is not defined in the schema cache'
           });
 
           testQueries.push({
-            name: `${tableName} with ${referencedTable} (correct)`,
+            name: `${tableName} with ${referencedTable} (correct - no join)`,
             query: `.from('${tableName}').select('*, ${referencedTable}:${referencedTable}(*)')`,
             correct: true,
-            relationship: `${tableName}.${fk.column_name} -> ${referencedTable}`
+            relationship: `${tableName}.${fk.column_name} -> ${referencedTable}`,
+            note: 'This might fail if the relationship is not defined in the schema cache'
+          });
+
+          // Add examples with explicit join conditions
+          testQueries.push({
+            name: `${tableName} with ${referencedTable} (correct - explicit join)`,
+            query: `.from('${tableName}').select('*, ${referencedTable}:${referencedTable}!inner(*)').eq('${fk.column_name}', 'some-id-value')`,
+            correct: true,
+            relationship: `${tableName}.${fk.column_name} -> ${referencedTable}`,
+            note: 'Uses explicit join condition that works even without schema relationships'
           });
         }
       }
@@ -161,18 +173,32 @@ export default function SupabaseAnalyzerPage() {
       // Other tables have foreign keys to this table
       for (const fk of tableRelationships.filter(fk => fk.referenced_table_name?.referenced_table_name === tableName)) {
         const sourceTable = fk.table_name;
+
+        // Generate examples with explicit join conditions
         testQueries.push({
-          name: `${sourceTable} with ${tableName} (incorrect)`,
+          name: `${sourceTable} with ${tableName} (incorrect - no join)`,
           query: `.from('${sourceTable}').select('*, ${tableName}(*)')`,
           correct: false,
-          relationship: `${sourceTable}.${fk.column_name} -> ${tableName}`
+          relationship: `${sourceTable}.${fk.column_name} -> ${tableName}`,
+          note: 'This will fail if the relationship is not defined in the schema cache'
         });
 
         testQueries.push({
-          name: `${sourceTable} with ${tableName} (correct)`,
+          name: `${sourceTable} with ${tableName} (correct - no join)`,
           query: `.from('${sourceTable}').select('*, ${tableName}:${tableName}(*)')`,
           correct: true,
-          relationship: `${sourceTable}.${fk.column_name} -> ${tableName}`
+          relationship: `${sourceTable}.${fk.column_name} -> ${tableName}`,
+          note: 'This might fail if the relationship is not defined in the schema cache'
+        });
+
+        // Add examples with explicit join conditions
+        testQueries.push({
+          name: `${sourceTable} with ${tableName} (correct - explicit join)`,
+          query: `.from('${sourceTable}').select('*, ${tableName}:${tableName}!inner(*)')
+  .eq('${fk.column_name}', 'some-id-value')`,
+          correct: true,
+          relationship: `${sourceTable}.${fk.column_name} -> ${tableName}`,
+          note: 'Uses explicit join condition that works even without schema relationships'
         });
       }
 
@@ -322,6 +348,12 @@ export default function SupabaseAnalyzerPage() {
                       <code className="text-sm font-mono">supabase{result.query}</code>
                     </div>
 
+                    {result.note && (
+                      <div className="mb-3 text-xs text-gray-600 italic">
+                        Note: {result.note}
+                      </div>
+                    )}
+
                     <button
                       onClick={() => {
                         setTestQuery(result.query);
@@ -381,6 +413,11 @@ export default function SupabaseAnalyzerPage() {
                         <strong>Fix:</strong> Change your query to use the format <code className="bg-red-100 px-1">table:table(*)</code> instead of <code className="bg-red-100 px-1">table(*)</code>
                       </p>
                     )}
+                    {testError.includes('Could not find a relationship') && (
+                      <p className="text-sm text-red-700 mt-2">
+                        <strong>Fix:</strong> Use explicit foreign key filters like <code className="bg-red-100 px-1">.eq('foreign_key_column', 'id_value')</code> instead of relying on schema relationships
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -404,22 +441,43 @@ export default function SupabaseAnalyzerPage() {
           </div>
 
           <div className="bg-blue-50 p-4 rounded-md">
-            <h2 className="text-lg font-medium text-blue-900 mb-2">How to fix "JSON object requested" errors</h2>
+            <h2 className="text-lg font-medium text-blue-900 mb-2">How to fix common Supabase query errors</h2>
             <div className="space-y-3 text-sm text-blue-800">
-              <p>
-                The error "JSON object requested, multiple (or no) rows returned" occurs when Supabase tries to return a nested object
-                but the query doesn't properly specify the relationship.
-              </p>
-              <p>
-                <strong>Incorrect syntax:</strong> <code className="bg-blue-100 px-1">.select('*, customers(*)')</code>
-              </p>
-              <p>
-                <strong>Correct syntax:</strong> <code className="bg-blue-100 px-1">.select('*, customers:customers(*)')</code>
-              </p>
-              <p>
-                The colon notation tells Supabase to return the nested data as a JSON object with the specified key.
-                This is particularly important when using the <code className="bg-blue-100 px-1">.single()</code> method.
-              </p>
+              <div>
+                <h3 className="font-medium mb-1">1. "JSON object requested, multiple (or no) rows returned"</h3>
+                <p className="mb-2">
+                  This error occurs when Supabase tries to return a nested object
+                  but the query doesn't properly specify the relationship.
+                </p>
+                <p>
+                  <strong>Incorrect syntax:</strong> <code className="bg-blue-100 px-1">.select('*, customers(*)')</code>
+                </p>
+                <p>
+                  <strong>Correct syntax:</strong> <code className="bg-blue-100 px-1">.select('*, customers:customers(*)')</code>
+                </p>
+                <p>
+                  The colon notation tells Supabase to return the nested data as a JSON object with the specified key.
+                  This is particularly important when using the <code className="bg-blue-100 px-1">.single()</code> method.
+                </p>
+              </div>
+
+              <div className="pt-3 border-t border-blue-200">
+                <h3 className="font-medium mb-1">2. "Could not find a relationship between tables"</h3>
+                <p className="mb-2">
+                  This error occurs when Supabase can't find the relationship between tables in its schema cache.
+                  This can happen when foreign keys aren't properly defined or when RLS policies prevent access.
+                </p>
+                <p>
+                  <strong>Solution:</strong> Use explicit foreign key filters instead of relying on schema relationships:
+                </p>
+                <pre className="bg-blue-100 p-2 rounded-md mt-1">
+                  <code className="text-xs font-mono">
+{`.from('orders')
+  .select('*, customers:customers(*)')
+  .eq('customer_id', 'the-customer-id')`}
+                  </code>
+                </pre>
+              </div>
             </div>
           </div>
         </div>
