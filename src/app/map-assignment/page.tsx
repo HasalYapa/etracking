@@ -184,7 +184,7 @@ export default function MapAssignmentPage() {
                   </p>
 
                   {/* Map Assignment Component */}
-                  <MapAssignment supabaseClient={supabase} />
+                  <MapAssignment />
                 </div>
               </div>
             </div>

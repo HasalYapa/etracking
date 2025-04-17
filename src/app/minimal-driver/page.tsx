@@ -8,7 +8,6 @@ import Html5QRScanner from '@/components/Html5QrScanner';
 import EnhancedDriverNotifications from '@/components/enhanced-driver-notifications';
 import DriverOrderCard from '@/components/driver-order-card';
 import { supabase } from '@/lib/supabase';
-// Supabase client is imported from lib/supabase
 
 export default function MinimalDriverPage() {
   const [user, setUser] = useState<any>(null);

@@ -5,8 +5,7 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import * as turf from '@turf/turf';
 import { ToastContainer, toast } from 'react-toastify';
-// Use the same supabase instance that's passed from the parent component
-let supabase: any;
+import { supabase } from '@/lib/supabase';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -210,13 +209,7 @@ function AssignmentModal({ isOpen, onClose, driver, order, onConfirm }: Assignme
   );
 }
 
-interface MapAssignmentProps {
-  supabaseClient: any;
-}
-
-export default function MapAssignment({ supabaseClient }: MapAssignmentProps) {
-  // Set the supabase client
-  supabase = supabaseClient;
+export default function MapAssignment() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
