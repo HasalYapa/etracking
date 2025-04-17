@@ -3,8 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '../../../lib/auth-context';
-import { supabase } from '../../../lib/supabase';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { LoginFormData } from '../../../types';
 
 export default function Login() {
@@ -13,9 +12,10 @@ export default function Login() {
     password: ''
   });
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const router = useRouter();
-  const { signIn, isLoading } = useAuth();
+  const supabase = createClientComponentClient();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -28,31 +28,37 @@ export default function Login() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setIsLoading(true);
     console.log('Login attempt with email:', formData.email);
 
     try {
-      console.log('Calling signIn function');
-      await signIn(formData.email, formData.password);
+      // Sign in with Supabase
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: formData.email,
+        password: formData.password
+      });
+
+      if (error) {
+        console.error('Login error:', error);
+        throw error;
+      }
+
       console.log('Sign in successful');
 
       // Get the current user and redirect based on role
-      console.log('Getting current user');
-      const { data: { user } } = await supabase.auth.getUser();
-      console.log('User retrieved:', user ? 'User found' : 'No user');
-
-      if (user) {
-        console.log('User ID:', user.id);
+      if (data.user) {
+        console.log('User ID:', data.user.id);
         try {
           const { data: profile, error } = await supabase
             .from('profiles')
             .select('role')
-            .eq('id', user.id)
+            .eq('id', data.user.id)
             .single();
 
           if (error) {
             console.error('Error fetching profile:', error);
             // Use user metadata as fallback
-            const role = user.user_metadata?.role || 'shop_owner';
+            const role = data.user.user_metadata?.role || 'shop_owner';
             redirectBasedOnRole(role);
           } else if (profile) {
             redirectBasedOnRole(profile.role);
@@ -71,6 +77,8 @@ export default function Login() {
       }
     } catch (error: any) {
       setError(error.message || 'An error occurred during login');
+    } finally {
+      setIsLoading(false);
     }
   };
 
