@@ -53,8 +53,8 @@ export async function GET(request: Request) {
         .from('driver_availability')
         .insert({
           driver_id: driverId,
-          available: false,
-          last_active: new Date().toISOString()
+          available: false
+          // Remove last_active as it has a default value in the database
         })
         .select()
         .single();
@@ -110,8 +110,8 @@ export async function POST(request: Request) {
     // Update driver availability
     const updateData: any = {
       driver_id: driverId,
-      available,
-      last_active: new Date().toISOString()
+      available
+      // Remove last_active as it has a default value in the database
     };
 
     // Add location data if provided
