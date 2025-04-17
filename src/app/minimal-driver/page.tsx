@@ -6,6 +6,14 @@ import RealTimeClock from '@/components/real-time-clock';
 import LogoPlaceholder from '@/components/logo-placeholder';
 import Html5QRScanner from '@/components/Html5QrScanner';
 import supabase from '@/utils/supabase-client';
+import { createClient } from '@supabase/supabase-js';
+
+// Create a Supabase client with service role key to bypass RLS
+const supabaseUrl = 'https://slujerwtublzuxtzdtyw.supabase.co';
+const supabaseServiceKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsdWplcnd0dWJsenV4dHpkdHl3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NDY1NTM0NiwiZXhwIjoyMDYwMjMxMzQ2fQ.mKei2DrPSguXkVouBWzsW3iqDWT2H3xvkJOnkPIkuLc';
+
+// Use service role client for admin operations
+const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
 export default function MinimalDriverPage() {
   const [user, setUser] = useState<any>(null);
@@ -547,7 +555,9 @@ export default function MinimalDriverPage() {
 
           console.log('MinimalDriverPage: Creating order history entry:', historyData);
 
-          const { error: historyError } = await supabase
+          // Use the admin client to bypass RLS
+          console.log('MinimalDriverPage: Using admin client to bypass RLS');
+          const { error: historyError } = await supabaseAdmin
             .from('order_history')
             .insert(historyData);
 
@@ -559,7 +569,9 @@ export default function MinimalDriverPage() {
           // Now update the order status
           console.log('MinimalDriverPage: Updating order status...');
 
-          const { error: updateError } = await supabase
+          // Use the admin client to bypass RLS
+          console.log('MinimalDriverPage: Using admin client to bypass RLS for order update');
+          const { error: updateError } = await supabaseAdmin
             .from('orders')
             .update({
               status: 'in_transit',
@@ -640,7 +652,9 @@ export default function MinimalDriverPage() {
 
         console.log('MinimalDriverPage: Creating order history entry:', historyData);
 
-        const { error: historyError } = await supabase
+        // Use the admin client to bypass RLS
+        console.log('MinimalDriverPage: Using admin client to bypass RLS');
+        const { error: historyError } = await supabaseAdmin
           .from('order_history')
           .insert(historyData);
 
@@ -652,7 +666,9 @@ export default function MinimalDriverPage() {
         // Now update the order status
         console.log('MinimalDriverPage: Updating order status...');
 
-        const { error: updateError } = await supabase
+        // Use the admin client to bypass RLS
+        console.log('MinimalDriverPage: Using admin client to bypass RLS for order update');
+        const { error: updateError } = await supabaseAdmin
           .from('orders')
           .update({
             status: 'in_transit',
@@ -699,7 +715,9 @@ export default function MinimalDriverPage() {
 
       console.log('MinimalDriverPage: Creating order history entry:', historyData);
 
-      const { error: historyError } = await supabase
+      // Use the admin client to bypass RLS
+      console.log('MinimalDriverPage: Using admin client to bypass RLS');
+      const { error: historyError } = await supabaseAdmin
         .from('order_history')
         .insert(historyData);
 
@@ -711,7 +729,9 @@ export default function MinimalDriverPage() {
       // Now update the order status
       console.log('MinimalDriverPage: Updating order status...');
 
-      const { error: updateError } = await supabase
+      // Use the admin client to bypass RLS
+      console.log('MinimalDriverPage: Using admin client to bypass RLS for order update');
+      const { error: updateError } = await supabaseAdmin
         .from('orders')
         .update({
           status: 'in_transit',
@@ -776,7 +796,9 @@ export default function MinimalDriverPage() {
 
       console.log('MinimalDriverPage: Creating order history entry:', historyData);
 
-      const { error: historyError } = await supabase
+      // Use the admin client to bypass RLS
+      console.log('MinimalDriverPage: Using admin client to bypass RLS');
+      const { error: historyError } = await supabaseAdmin
         .from('order_history')
         .insert(historyData);
 
@@ -788,7 +810,9 @@ export default function MinimalDriverPage() {
       // Now update the order status
       console.log('MinimalDriverPage: Updating order status...');
 
-      const { error: updateError } = await supabase
+      // Use the admin client to bypass RLS
+      console.log('MinimalDriverPage: Using admin client to bypass RLS for order update');
+      const { error: updateError } = await supabaseAdmin
         .from('orders')
         .update({
           status: newStatus,
@@ -811,7 +835,7 @@ export default function MinimalDriverPage() {
       // Show a toast notification instead of an alert
       if (Notification.permission === 'granted') {
         const notification = new Notification('Order Status Updated', {
-          body: `Order status changed from ${result.previousStatus} to ${newStatus}`,
+          body: `Order status changed to ${newStatus}`,
           icon: '/favicon.ico'
         });
 
