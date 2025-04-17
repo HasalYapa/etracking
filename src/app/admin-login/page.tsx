@@ -1,21 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-
-// Create a Supabase client
-const supabaseUrl = 'https://slujerwtublzuxtzdtyw.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsdWplcnd0dWJsenV4dHpkdHl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ2NTUzNDYsImV4cCI6MjA2MDIzMTM0Nn0.5irKk2XDrs0ItDWcnN2dOzUBT6KG3Pppg6Slh2fb4CA';
-
-const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true,
-    storageKey: 'supabase.auth.token',
-  },
-});
+import { supabase } from '@/lib/supabase-singleton';
 
 export default function AdminLogin() {
   const [email, setEmail] = useState('admin@etracking.store');
@@ -23,6 +11,7 @@ export default function AdminLogin() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const router = useRouter();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,11 +36,21 @@ export default function AdminLogin() {
       console.log('Sign in successful:', data);
       setSuccess('Login successful! Redirecting...');
 
-      // Force a delay to ensure session is properly established
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Set a redirecting state to show a better loading indicator
+      setLoading(true);
+      setSuccess('Login successful! Redirecting to dashboard...');
 
       // Redirect to admin dashboard
-      window.location.href = '/admin-dashboard';
+      console.log('AdminLogin: Redirecting to admin dashboard');
+
+      // Use router.push for navigation within Next.js
+      // The replace: true option ensures we don't keep the login page in history
+      router.push('/admin', { replace: true });
+
+      // If for some reason the redirect doesn't happen, reset loading state after 3 seconds
+      setTimeout(() => {
+        setLoading(false);
+      }, 3000);
     } catch (err: any) {
       console.error('Unexpected error:', err);
       setError(err.message || 'An unexpected error occurred');

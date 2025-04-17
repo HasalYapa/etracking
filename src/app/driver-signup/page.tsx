@@ -1,21 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-
-// Create a Supabase client
-const supabaseUrl = 'https://slujerwtublzuxtzdtyw.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsdWplcnd0dWJsenV4dHpkdHl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ2NTUzNDYsImV4cCI6MjA2MDIzMTM0Nn0.5irKk2XDrs0ItDWcnN2dOzUBT6KG3Pppg6Slh2fb4CA';
-
-const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true,
-    storageKey: 'supabase.auth.token',
-  },
-});
+import { supabase } from '@/lib/supabase-singleton';
 
 export default function DriverSignup() {
   const [name, setName] = useState('');
@@ -29,6 +17,7 @@ export default function DriverSignup() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const router = useRouter();
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,9 +106,13 @@ export default function DriverSignup() {
       setVehicleNumber('');
       setLicenseNumber('');
 
-      // Redirect after a delay
+      // Set a redirecting state to show a better loading indicator
+      setLoading(true);
+      setSuccess('Sign up successful! Redirecting to login page...');
+
+      // Redirect after a delay using Next.js router
       setTimeout(() => {
-        window.location.href = '/driver-login';
+        router.push('/driver-login', { replace: true });
       }, 3000);
     } catch (err: any) {
       console.error('Signup error:', err);
