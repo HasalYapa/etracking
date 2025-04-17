@@ -13,7 +13,7 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
-    storageKey: 'supabase.auth.token',
+    storageKey: 'sb-slujerwtublzuxtzdtyw-auth-token',
   },
 });
 
@@ -70,11 +70,36 @@ export default function ShopLogin() {
 
       setSuccess(`Login successful! Welcome, ${profile.name}. Redirecting...`);
 
+      // Store the session in localStorage to ensure it's available
+      if (data.session) {
+        // Store in the correct Supabase format
+        localStorage.setItem('sb-slujerwtublzuxtzdtyw-auth-token', JSON.stringify({
+          access_token: data.session.access_token,
+          refresh_token: data.session.refresh_token,
+          expires_at: Math.floor(Date.now() / 1000) + 3600
+        }));
+      }
+
       // Force a delay to ensure session is properly established
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Redirect to minimal shop dashboard
-      window.location.href = '/minimal-shop';
+      console.log('Redirecting to minimal shop dashboard...');
+      try {
+        // Try multiple approaches to ensure redirection works
+        window.location.href = '/minimal-shop';
+
+        // Fallback: try after a short delay
+        setTimeout(() => {
+          window.location.replace('/minimal-shop');
+        }, 100);
+      } catch (redirectErr) {
+        console.error('Error during redirect:', redirectErr);
+        // Last resort: create and click a link
+        const link = document.createElement('a');
+        link.href = '/minimal-shop';
+        link.click();
+      }
     } catch (err: any) {
       console.error('Unexpected error:', err);
       setError(err.message || 'An unexpected error occurred');

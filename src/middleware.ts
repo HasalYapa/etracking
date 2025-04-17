@@ -101,15 +101,13 @@ export async function middleware(request: NextRequest) {
         request.nextUrl.pathname.startsWith('/map-assignment') ||
         request.nextUrl.pathname.startsWith('/minimal-shop') ||
         request.nextUrl.pathname.startsWith('/minimal-driver')) {
-      // Skip login pages to avoid redirect loops
-      if (request.nextUrl.pathname.includes('login')) {
-        console.log('Login page detected, skipping auth check');
-        return response;
-      }
-
-      // Skip signup pages
-      if (request.nextUrl.pathname.includes('signup')) {
-        console.log('Signup page detected, skipping auth check');
+      // Skip login, signup, and public pages to avoid redirect loops
+      if (request.nextUrl.pathname.includes('login') ||
+          request.nextUrl.pathname.includes('signup') ||
+          request.nextUrl.pathname === '/' ||
+          request.nextUrl.pathname.includes('about') ||
+          request.nextUrl.pathname.includes('contact')) {
+        console.log('Public page detected, skipping auth check');
         return response;
       }
 
