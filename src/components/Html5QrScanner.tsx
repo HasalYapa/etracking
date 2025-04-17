@@ -69,7 +69,69 @@ export default function Html5QRScanner({ onScan, onError }: Html5QRScannerProps)
       }
 
       const scanner = scannerRef.current;
+
+      // Get available cameras
+      try {
+        console.log('Requesting camera permissions...');
+        const devices = await Html5Qrcode.getCameras();
+        console.log('Available cameras:', devices);
+
+        if (devices && devices.length > 0) {
+          // Use the first camera by default or based on facing mode preference
+          let selectedCamera;
+
+          if (facingMode === 'environment') {
+            // Try to find a back camera first
+            const backCamera = devices.find(device =>
+              device.label.toLowerCase().includes('back') ||
+              device.label.toLowerCase().includes('rear') ||
+              device.label.toLowerCase().includes('environment'));
+
+            selectedCamera = backCamera || devices[0];
+          } else {
+            // Try to find a front camera
+            const frontCamera = devices.find(device =>
+              device.label.toLowerCase().includes('front') ||
+              device.label.toLowerCase().includes('user'));
+
+            selectedCamera = frontCamera || devices[0];
+          }
+
+          console.log('Selected camera:', selectedCamera);
+
+          await scanner.start(
+            selectedCamera.id,
+            {
+              fps: 10,
+              qrbox: { width: 250, height: 250 },
+            },
+            (decodedText) => {
+              try {
+                console.log('QR code scanned:', decodedText);
+                const parsedData = parseQRData(decodedText);
+                onScan(parsedData);
+                stopScanner();
+              } catch (err: any) {
+                console.error('Error processing scan result:', err);
+                setError(err.message);
+                if (onError) onError(err.message);
+              }
+            },
+            (errorMessage) => {
+              // This callback is called for non-fatal errors, so we don't need to handle them
+              console.log('QR scan non-fatal error:', errorMessage);
+            }
+          );
+          return;
+        }
+      } catch (cameraErr) {
+        console.error('Error getting cameras:', cameraErr);
+        // Fall back to facingMode approach
+      }
+
+      // Fallback to facingMode approach if camera enumeration fails
       const cameraId = facingMode === 'environment' ? { facingMode: 'environment' } : { facingMode: 'user' };
+      console.log('Using facingMode fallback:', facingMode);
 
       await scanner.start(
         cameraId,
@@ -105,8 +167,16 @@ export default function Html5QRScanner({ onScan, onError }: Html5QRScannerProps)
   // Stop scanning
   const stopScanner = async () => {
     try {
-      if (scannerRef.current && isScanning) {
-        await scannerRef.current.stop();
+      console.log('Attempting to stop scanner...');
+      if (scannerRef.current) {
+        if (isScanning) {
+          await scannerRef.current.stop();
+          console.log('Scanner stopped successfully');
+        } else {
+          console.log('Scanner was not running');
+        }
+      } else {
+        console.log('No scanner instance to stop');
       }
     } catch (err) {
       console.error('Error stopping scanner:', err);
@@ -117,23 +187,47 @@ export default function Html5QRScanner({ onScan, onError }: Html5QRScannerProps)
 
   // Toggle camera
   const toggleCamera = async () => {
-    if (isScanning) {
-      await stopScanner();
-    }
-    setFacingMode(prev => prev === 'environment' ? 'user' : 'environment');
-    if (isScanning) {
-      setTimeout(startScanner, 500);
+    try {
+      console.log('Toggling camera from', facingMode, 'to', facingMode === 'environment' ? 'user' : 'environment');
+
+      // First stop the scanner
+      if (isScanning) {
+        console.log('Stopping scanner before toggling camera');
+        await stopScanner();
+      }
+
+      // Change the facing mode
+      setFacingMode(prev => prev === 'environment' ? 'user' : 'environment');
+
+      // Restart the scanner after a delay
+      console.log('Restarting scanner with new camera in 500ms');
+      setTimeout(() => {
+        if (!isScanning) {
+          console.log('Starting scanner with new camera');
+          startScanner();
+        }
+      }, 500);
+    } catch (err) {
+      console.error('Error toggling camera:', err);
+      setError('Error switching camera. Please try again.');
     }
   };
 
   // Clean up on unmount
   useEffect(() => {
     return () => {
-      if (scannerRef.current && isScanning) {
-        scannerRef.current.stop().catch(console.error);
+      console.log('Component unmounting, cleaning up scanner...');
+      if (scannerRef.current) {
+        try {
+          scannerRef.current.stop().catch(err => {
+            console.error('Error stopping scanner during cleanup:', err);
+          });
+        } catch (err) {
+          console.error('Error during scanner cleanup:', err);
+        }
       }
     };
-  }, [isScanning]);
+  }, []);
 
   return (
     <div className="flex flex-col items-center p-4 bg-white rounded-lg shadow-md">
@@ -145,44 +239,71 @@ export default function Html5QRScanner({ onScan, onError }: Html5QRScannerProps)
         <div className="w-full flex flex-col items-center">
           <button
             onClick={startScanner}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 mb-4"
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 mb-4 font-medium shadow-sm"
           >
-            Start Scanning
+            <div className="flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              Start Scanning
+            </div>
           </button>
           <div className="w-full h-64 bg-gray-100 rounded-lg flex items-center justify-center">
-            <p className="text-gray-500">Click Start Scanning to activate camera</p>
+            <div className="text-center">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto text-gray-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+              </svg>
+              <p className="text-gray-500">Click Start Scanning to activate camera</p>
+            </div>
           </div>
         </div>
       ) : (
         <div className="w-full mt-4">
-          <div className="flex justify-between">
+          <div className="flex justify-between gap-2">
             <button
               onClick={stopScanner}
-              className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+              className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium shadow-sm flex items-center justify-center"
             >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
               Stop Scanning
             </button>
             <button
               onClick={toggleCamera}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium shadow-sm flex items-center justify-center"
             >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
               Switch Camera
             </button>
           </div>
-          <div className="mt-2 text-center text-sm text-gray-500">
+          <div className="mt-2 text-center text-sm font-medium text-blue-600 bg-blue-50 py-1 px-2 rounded-lg">
             {facingMode === 'environment' ? 'Using back camera' : 'Using front camera'}
           </div>
         </div>
       )}
 
       {error && (
-        <div className="w-full p-3 mt-4 bg-red-100 border border-red-400 text-red-700 rounded">
-          {error}
+        <div className="w-full p-3 mt-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+          <div className="flex items-center">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            {error}
+          </div>
         </div>
       )}
 
-      <div className="w-full mt-4 text-sm text-gray-500">
-        <p>Position the QR code within the camera view for scanning.</p>
+      <div className="w-full mt-4 text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
+        <div className="flex items-start">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-blue-500 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <p>Position the QR code within the camera view for scanning. Make sure there is good lighting and hold the camera steady.</p>
+        </div>
       </div>
     </div>
   );

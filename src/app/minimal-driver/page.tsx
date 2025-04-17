@@ -28,14 +28,25 @@ export default function MinimalDriverPage() {
 
   // Set a timeout to handle stuck loading state
   useEffect(() => {
-    // If still loading after 10 seconds, show a timeout error
+    // If still loading after 20 seconds, show a timeout error
     const timeoutId = setTimeout(() => {
       if (loading) {
         console.log('MinimalDriverPage: Loading timeout reached');
         setError('Loading timeout. Please try refreshing the page or return to login.');
         setLoading(false);
+
+        // Force a sign out to clear any problematic session state
+        try {
+          supabase.auth.signOut().then(() => {
+            console.log('MinimalDriverPage: Forced sign out due to timeout');
+            // Clear any stored session data
+            localStorage.removeItem('supabase.auth.token');
+          });
+        } catch (e) {
+          console.error('MinimalDriverPage: Error during forced sign out:', e);
+        }
       }
-    }, 10000); // 10 seconds timeout
+    }, 20000); // 20 seconds timeout (increased from 10 seconds)
 
     return () => clearTimeout(timeoutId);
   }, [loading]);

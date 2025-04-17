@@ -587,6 +587,7 @@ export default function MinimalShopPage() {
               <div className="flex flex-col items-center justify-center mb-6">
                 <div className="border-2 border-gray-200 p-6 rounded-xl mb-6 bg-white shadow-sm">
                   <QRCodeSVG
+                    id="shop-qr-code"
                     value={qrCodeData}
                     size={220}
                     level="H"
@@ -606,10 +607,110 @@ export default function MinimalShopPage() {
                 </div>
               </div>
 
+              <div className="flex justify-between gap-3 mb-4">
+                <button
+                  onClick={() => {
+                    // Download QR code as image
+                    const canvas = document.getElementById('shop-qr-code')?.querySelector('canvas');
+                    if (canvas) {
+                      const pngUrl = canvas
+                        .toDataURL('image/png')
+                        .replace('image/png', 'image/octet-stream');
+
+                      // Create a temporary link and trigger download
+                      const downloadLink = document.createElement('a');
+                      downloadLink.href = pngUrl;
+                      downloadLink.download = `tracking-qr-code.png`;
+                      document.body.appendChild(downloadLink);
+                      downloadLink.click();
+                      document.body.removeChild(downloadLink);
+                    } else {
+                      alert('Could not generate download. Please try again.');
+                    }
+                  }}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm flex items-center justify-center"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  Download
+                </button>
+                <button
+                  onClick={() => {
+                    // Print QR code
+                    const printWindow = window.open('', '_blank');
+                    if (printWindow) {
+                      const canvas = document.getElementById('shop-qr-code')?.querySelector('canvas');
+                      if (canvas) {
+                        const pngUrl = canvas.toDataURL('image/png');
+
+                        printWindow.document.write(`
+                          <html>
+                            <head>
+                              <title>Print QR Code</title>
+                              <style>
+                                body {
+                                  font-family: Arial, sans-serif;
+                                  text-align: center;
+                                  padding: 20px;
+                                }
+                                .container {
+                                  max-width: 400px;
+                                  margin: 0 auto;
+                                  border: 1px solid #ccc;
+                                  padding: 20px;
+                                }
+                                .qr-image {
+                                  width: 250px;
+                                  height: 250px;
+                                  margin: 0 auto;
+                                }
+                                .instructions {
+                                  margin-top: 20px;
+                                  font-size: 14px;
+                                  text-align: left;
+                                  padding: 10px;
+                                  background-color: #f0f7ff;
+                                  border-radius: 5px;
+                                }
+                              </style>
+                            </head>
+                            <body>
+                              <div class="container">
+                                <h2>Driver QR Code</h2>
+                                <img src="${pngUrl}" class="qr-image" />
+                                <div class="instructions">
+                                  <p><strong>Driver Instructions:</strong></p>
+                                  <p>1. Scan this QR code before picking up the order</p>
+                                  <p>2. Update status as you progress with the delivery</p>
+                                </div>
+                              </div>
+                            </body>
+                          </html>
+                        `);
+
+                        printWindow.document.close();
+                        printWindow.focus();
+                        printWindow.print();
+                        printWindow.close();
+                      } else {
+                        alert('Could not generate print view. Please try again.');
+                      }
+                    }
+                  }}
+                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-sm flex items-center justify-center"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                  </svg>
+                  Print
+                </button>
+              </div>
+
               <div className="flex justify-center">
                 <button
                   onClick={closeQRCode}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+                  className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors shadow-sm"
                 >
                   Close
                 </button>
