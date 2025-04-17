@@ -538,6 +538,14 @@ export default function MinimalDriverPage() {
 
           // Use the dedicated API endpoint for QR code scanning
           console.log('MinimalDriverPage: Using scan-qr-code API endpoint');
+          // BEST PRACTICE: Always use the authenticated user's ID (driver ID) as the updated_by field
+          // Make sure we have a valid driver ID
+          if (!profile?.id) {
+            console.error('MinimalDriverPage: No driver ID available, cannot proceed');
+            throw new Error('No driver ID available, please log in again');
+          }
+
+          console.log('MinimalDriverPage: Using driver ID for updated_by:', profile.id);
           console.log('MinimalDriverPage: QR code data shopId:', data.shopId);
 
           const response = await fetch('/api/scan-qr-code', {
@@ -547,8 +555,8 @@ export default function MinimalDriverPage() {
             },
             body: JSON.stringify({
               orderId: orderByIdData.id,
-              driverId: profile.id,
-              shopId: data.shopId || '9939c3f3-e3fc-4af7-9ecd-31ab535bce59', // Include the shop ID from the QR code with fallback
+              driverId: profile.id, // This is the authenticated user's ID
+              shopId: data.shopId, // Include the shop ID from the QR code (optional)
               status: 'in_transit',
               latitude: latitude,
               longitude: longitude
@@ -624,6 +632,14 @@ export default function MinimalDriverPage() {
         // Use the dedicated API endpoint for QR code scanning
         console.log('MinimalDriverPage: Using scan-qr-code API endpoint');
 
+        // BEST PRACTICE: Always use the authenticated user's ID (driver ID) as the updated_by field
+        // Make sure we have a valid driver ID
+        if (!profile?.id) {
+          console.error('MinimalDriverPage: No driver ID available, cannot proceed');
+          throw new Error('No driver ID available, please log in again');
+        }
+
+        console.log('MinimalDriverPage: Using driver ID for updated_by:', profile.id);
         console.log('MinimalDriverPage: QR code data shopId:', data.shopId);
 
         const response = await fetch('/api/scan-qr-code', {
@@ -633,8 +649,8 @@ export default function MinimalDriverPage() {
           },
           body: JSON.stringify({
             orderId: orderByIdData.id,
-            driverId: profile.id,
-            shopId: data.shopId || '9939c3f3-e3fc-4af7-9ecd-31ab535bce59', // Include the shop ID from the QR code with fallback
+            driverId: profile.id, // This is the authenticated user's ID
+            shopId: data.shopId, // Include the shop ID from the QR code (optional)
             status: 'in_transit',
             latitude: latitude,
             longitude: longitude
@@ -678,6 +694,14 @@ export default function MinimalDriverPage() {
       // Use the dedicated API endpoint for QR code scanning
       console.log('MinimalDriverPage: Using scan-qr-code API endpoint');
 
+      // BEST PRACTICE: Always use the authenticated user's ID (driver ID) as the updated_by field
+      // Make sure we have a valid driver ID
+      if (!profile?.id) {
+        console.error('MinimalDriverPage: No driver ID available, cannot proceed');
+        throw new Error('No driver ID available, please log in again');
+      }
+
+      console.log('MinimalDriverPage: Using driver ID for updated_by:', profile.id);
       console.log('MinimalDriverPage: QR code data shopId:', data.shopId);
 
       const response = await fetch('/api/scan-qr-code', {
@@ -687,8 +711,8 @@ export default function MinimalDriverPage() {
         },
         body: JSON.stringify({
           orderId: orderData.id,
-          driverId: profile.id,
-          shopId: data.shopId || '9939c3f3-e3fc-4af7-9ecd-31ab535bce59', // Include the shop ID from the QR code with fallback
+          driverId: profile.id, // This is the authenticated user's ID
+          shopId: data.shopId, // Include the shop ID from the QR code (optional)
           status: 'in_transit',
           latitude: latitude,
           longitude: longitude
@@ -783,6 +807,15 @@ export default function MinimalDriverPage() {
       // Use the dedicated API endpoint for QR code scanning
       console.log('MinimalDriverPage: Using scan-qr-code API endpoint');
 
+      // BEST PRACTICE: Always use the authenticated user's ID (driver ID) as the updated_by field
+      // Make sure we have a valid driver ID
+      if (!profile?.id) {
+        console.error('MinimalDriverPage: No driver ID available, cannot proceed');
+        throw new Error('No driver ID available, please log in again');
+      }
+
+      console.log('MinimalDriverPage: Using driver ID for updated_by:', profile.id);
+
       const response = await fetch('/api/scan-qr-code', {
         method: 'POST',
         headers: {
@@ -790,7 +823,7 @@ export default function MinimalDriverPage() {
         },
         body: JSON.stringify({
           orderId: orderId,
-          driverId: profile.id,
+          driverId: profile.id, // This is the authenticated user's ID
           // We don't have shopId here, but the API will handle it
           status: newStatus,
           latitude: latitude,

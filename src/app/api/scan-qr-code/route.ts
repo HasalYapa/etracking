@@ -68,13 +68,13 @@ export async function POST(request: Request) {
     // CRITICAL: Make sure updated_by is never null to avoid not-null constraint violation
     const effectiveDriverId = driverId || '9155a1e2-84d0-44ec-8174-f27f8b9cc03e'; // Default driver ID as fallback
 
-    // If we have a shop ID, use it directly as the updated_by field
-    // In this application, the shop ID is the same as the shop owner ID
-    let shopOwnerId = shopId;
-    console.log('scan-qr-code API: Using shop ID directly as shop owner ID:', shopOwnerId);
+    // BEST PRACTICE: Always use the driver ID as the updated_by field
+    // This is the ID of the user who is actually performing the update
+    // The driver is the one scanning the QR code, so they should be recorded as the updater
+    console.log('scan-qr-code API: Using driver ID as updated_by:', effectiveDriverId);
 
-    // Use the shop owner ID as the updated_by if available, otherwise use the driver ID
-    const effectiveUpdatedBy = shopOwnerId || effectiveDriverId;
+    // Use the driver ID as the updated_by field
+    const effectiveUpdatedBy = effectiveDriverId;
     console.log('scan-qr-code API: Using effective updated_by:', effectiveUpdatedBy);
 
     const historyData = {
