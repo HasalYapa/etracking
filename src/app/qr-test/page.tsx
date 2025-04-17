@@ -222,21 +222,26 @@ export default function QRTestPage() {
           console.log('Found order by ID from QR code:', orderData);
 
           // Update the order status to in_transit
+          const requestBody = {
+            orderId: orderData.id,
+            status: 'in_transit',
+            driverId: profileData.id,
+            latitude,
+            longitude,
+          };
+
+          console.log('Sending update request with data:', requestBody);
+
           const response = await fetch('/api/update-order-status', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-              orderId: orderData.id,
-              status: 'in_transit',
-              driverId: profileData.id,
-              latitude,
-              longitude,
-            }),
+            body: JSON.stringify(requestBody),
           });
 
           const result = await response.json();
+          console.log('Update response:', { status: response.status, result });
 
           if (!response.ok) {
             throw new Error(result.error || 'Failed to update order status');
@@ -267,21 +272,26 @@ export default function QRTestPage() {
       console.log('Found order by tracking number:', orderData);
 
       // Update the order status to in_transit
+      const requestBody = {
+        orderId: orderData.id,
+        status: 'in_transit',
+        driverId: profileData.id,
+        latitude,
+        longitude,
+      };
+
+      console.log('Sending update request with data (tracking number lookup):', requestBody);
+
       const response = await fetch('/api/update-order-status', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          orderId: orderData.id,
-          status: 'in_transit',
-          driverId: profileData.id,
-          latitude,
-          longitude,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       const result = await response.json();
+      console.log('Update response (tracking number lookup):', { status: response.status, result });
 
       if (!response.ok) {
         throw new Error(result.error || 'Failed to update order status');

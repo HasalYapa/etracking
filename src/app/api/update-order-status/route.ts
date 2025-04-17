@@ -4,7 +4,14 @@ import { supabase } from '@/lib/supabase';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
+    console.log('Received update order status request:', body);
+
     const { orderId, status, driverId, latitude, longitude } = body;
+
+    // Validate required fields
+    if (!orderId) console.log('Missing orderId in request');
+    if (!status) console.log('Missing status in request');
+    if (!driverId) console.log('Missing driverId in request');
 
     if (!orderId || !status || !driverId) {
       return NextResponse.json({
@@ -14,10 +21,13 @@ export async function POST(request: Request) {
     }
 
     // Get the current order details first
+    console.log(`Looking up order with ID: ${orderId}`);
     const { data: orderResults, error: orderError } = await supabase
       .from('orders')
       .select('*')
       .eq('id', orderId);
+
+    console.log('Order lookup results:', { orderResults, orderError });
 
     if (orderError) {
       console.error('Error fetching order details:', orderError);
@@ -30,17 +40,24 @@ export async function POST(request: Request) {
     }
 
     const orderData = orderResults[0];
+    console.log('Found order:', orderData);
 
     // Update the order status
+    console.log(`Updating order ${orderId} to status: ${status}, driver: ${driverId}`);
+    const updateData = {
+      status,
+      driver_id: driverId, // Ensure driver is assigned
+      updated_at: new Date().toISOString()
+    };
+    console.log('Update data:', updateData);
+
     const { data: updatedResults, error: updateError } = await supabase
       .from('orders')
-      .update({
-        status,
-        driver_id: driverId, // Ensure driver is assigned
-        updated_at: new Date().toISOString()
-      })
+      .update(updateData)
       .eq('id', orderId)
       .select();
+
+    console.log('Update results:', { updatedResults, updateError });
 
     if (updateError) {
       console.error('Error updating order status:', updateError);
@@ -53,19 +70,27 @@ export async function POST(request: Request) {
     }
 
     const updatedOrder = updatedResults[0];
+    console.log('Updated order:', updatedOrder);
 
     // Create order history entry
-    const { error: historyError } = await supabase
+    console.log('Creating order history entry');
+    const historyData = {
+      order_id: orderId,
+      status,
+      notes: `Status updated to ${status}`,
+      created_at: new Date().toISOString(),
+      updated_by: driverId,
+      latitude,
+      longitude
+    };
+    console.log('History data:', historyData);
+
+    const { data: historyResult, error: historyError } = await supabase
       .from('order_history')
-      .insert({
-        order_id: orderId,
-        status,
-        notes: `Status updated to ${status}`,
-        created_at: new Date().toISOString(),
-        updated_by: driverId,
-        latitude,
-        longitude
-      });
+      .insert(historyData)
+      .select();
+
+    console.log('History creation result:', { historyResult, historyError });
 
     if (historyError) {
       console.error('Error creating order history:', historyError);
