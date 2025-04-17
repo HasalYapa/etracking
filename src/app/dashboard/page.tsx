@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useAuth } from '../../lib/auth-context';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Order, OrderWithRelations, Profile, CreateOrderFormData } from '../../types';
+import ProtectedRoute from '@/components/protected-route';
 
-export default function Dashboard() {
-  const { profile, isLoading: authLoading } = useAuth();
+function DashboardContent() {
+  const [profile, setProfile] = useState<any>(null);
   const [orders, setOrders] = useState<OrderWithRelations[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -16,6 +17,9 @@ export default function Dashboard() {
     in_transit: 0,
     delivered: 0
   });
+
+  // Create Supabase client
+  const supabase = createClientComponentClient();
 
   // New order modal state
   const [showModal, setShowModal] = useState(false);
@@ -71,12 +75,33 @@ export default function Dashboard() {
     }
   };
 
-  // Fetch orders when component mounts
+  // Fetch profile and orders when component mounts
   useEffect(() => {
-    if (!authLoading) {
-      fetchOrders();
-    }
-  }, [authLoading]);
+    const fetchProfile = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+
+        if (session?.user) {
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+
+          if (error) {
+            console.error('Error fetching profile:', error);
+          } else {
+            setProfile(data);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching profile:', err);
+      }
+    };
+
+    fetchProfile();
+    fetchOrders();
+  }, [supabase]);
 
   // Fetch drivers for the new order form
   useEffect(() => {
@@ -467,5 +492,14 @@ export default function Dashboard() {
         )}
       </main>
     </div>
+  );
+}
+
+// Wrapper component with authentication protection
+export default function Dashboard() {
+  return (
+    <ProtectedRoute requiredRole="shop_owner" redirectTo="/shop-login">
+      <DashboardContent />
+    </ProtectedRoute>
   );
 }
