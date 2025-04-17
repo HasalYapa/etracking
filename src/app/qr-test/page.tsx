@@ -133,22 +133,24 @@ export default function QRTestPage() {
       // Add console log to see what's happening
       console.log('Fetching sample orders...');
 
+      // Use a simpler query to avoid any potential issues
       const { data, error } = await supabase
         .from('orders')
-        .select('id, tracking_number, shop_id')
+        .select('id, tracking_number')
         .limit(5);
 
       console.log('Fetch result:', { data, error });
 
       if (error) throw error;
 
-      setOrders(data || []);
-
+      // If we got data, use it
       if (data && data.length > 0) {
+        setOrders(data);
         setTestOrderId(data[0].id);
+        console.log('Setting test order ID:', data[0].id);
       } else {
         // If no orders found, show an error
-        setScanError('No orders found. Please make sure you have orders in your database.');
+        setScanError('No orders found. Please create a test order first.');
       }
     } catch (err: any) {
       console.error('Error fetching sample order:', err);
@@ -340,6 +342,17 @@ export default function QRTestPage() {
                   className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:bg-gray-400"
                 >
                   {loading ? 'Loading...' : 'Create Test Order'}
+                </button>
+
+                <button
+                  onClick={() => {
+                    // Use a hardcoded UUID for testing
+                    setTestOrderId('00000000-0000-0000-0000-000000000000');
+                    setScanSuccess('Using test order ID for QR code generation');
+                  }}
+                  className="px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 transition-colors"
+                >
+                  Use Test ID
                 </button>
               </div>
 

@@ -19,6 +19,8 @@ export default function QRCodeGenerator({
   driverPhone = '',
 }: QRCodeGeneratorProps) {
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Create QR code data
   // Format: JSON or trackingNumber|location|driverPhone
@@ -139,21 +141,50 @@ export default function QRCodeGenerator({
     }
   };
 
+  // Check if trackingNumber is valid
+  React.useEffect(() => {
+    setIsLoading(true);
+    setError(null);
+
+    if (!trackingNumber) {
+      setError('No tracking number provided');
+      setIsLoading(false);
+      return;
+    }
+
+    // Simulate a small delay to ensure the component mounts properly
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [trackingNumber]);
+
   return (
     <div className="flex flex-col items-center p-4 bg-white rounded-lg shadow-md">
       <h3 className="text-lg font-semibold mb-4">Tracking QR Code</h3>
 
-      <div className="border-2 border-gray-200 rounded-lg p-2 mb-4">
-        <QRCodeSVG
-          id="qr-code"
-          value={qrData}
-          size={size}
-          level="H"
-          includeMargin={true}
-          bgColor={"#FFFFFF"}
-          fgColor={"#000000"}
-        />
-      </div>
+      {isLoading ? (
+        <div className="flex justify-center items-center h-[200px] w-[200px] border-2 border-gray-200 rounded-lg p-2 mb-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      ) : error ? (
+        <div className="flex justify-center items-center h-[200px] w-[200px] border-2 border-red-200 rounded-lg p-2 mb-4 bg-red-50">
+          <p className="text-red-500 text-sm text-center">{error}</p>
+        </div>
+      ) : (
+        <div className="border-2 border-gray-200 rounded-lg p-2 mb-4">
+          <QRCodeSVG
+            id="qr-code"
+            value={qrData}
+            size={size}
+            level="H"
+            includeMargin={true}
+            bgColor={"#FFFFFF"}
+            fgColor={"#000000"}
+          />
+        </div>
+      )}
 
       <div className="text-sm text-gray-600 mb-4">
         <p><strong>Tracking #:</strong> {trackingNumber}</p>
@@ -163,28 +194,30 @@ export default function QRCodeGenerator({
         )}
       </div>
 
-      <div className="flex space-x-2">
-        <button
-          onClick={downloadQRCode}
-          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
-        >
-          Download
-        </button>
-        <button
-          onClick={printQRCode}
-          className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
-        >
-          Print
-        </button>
-        {navigator.share && (
+      {!isLoading && !error && (
+        <div className="flex space-x-2">
           <button
-            onClick={shareQRCode}
-            className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm"
+            onClick={downloadQRCode}
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
           >
-            Share
+            Download
           </button>
-        )}
-      </div>
+          <button
+            onClick={printQRCode}
+            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
+          >
+            Print
+          </button>
+          {navigator.share && (
+            <button
+              onClick={shareQRCode}
+              className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm"
+            >
+              Share
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
