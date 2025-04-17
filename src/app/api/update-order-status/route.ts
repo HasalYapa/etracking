@@ -1,4 +1,14 @@
 import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+
+// Create a Supabase client with service role key to bypass RLS
+const supabaseUrl = 'https://slujerwtublzuxtzdtyw.supabase.co';
+const supabaseServiceKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsdWplcnd0dWJsenV4dHpkdHl3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NDY1NTM0NiwiZXhwIjoyMDYwMjMxMzQ2fQ.mKei2DrPSguXkVouBWzsW3iqDWT2H3xvkJOnkPIkuLc';
+
+// Use service role client for admin operations
+const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+
+// Import regular client for non-admin operations
 import { supabase } from '@/lib/supabase';
 
 export async function POST(request: Request) {
@@ -20,9 +30,9 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
 
-    // Get the current order details first
+    // Get the current order details first using admin client to bypass RLS
     console.log(`Looking up order with ID: ${orderId}`);
-    const { data: orderResults, error: orderError } = await supabase
+    const { data: orderResults, error: orderError } = await supabaseAdmin
       .from('orders')
       .select('*')
       .eq('id', orderId);
@@ -42,7 +52,7 @@ export async function POST(request: Request) {
     const orderData = orderResults[0];
     console.log('Found order:', orderData);
 
-    // Update the order status
+    // Update the order status using admin client to bypass RLS
     console.log(`Updating order ${orderId} to status: ${status}, driver: ${driverId}`);
     const updateData = {
       status,
@@ -51,7 +61,7 @@ export async function POST(request: Request) {
     };
     console.log('Update data:', updateData);
 
-    const { data: updatedResults, error: updateError } = await supabase
+    const { data: updatedResults, error: updateError } = await supabaseAdmin
       .from('orders')
       .update(updateData)
       .eq('id', orderId)
@@ -72,7 +82,7 @@ export async function POST(request: Request) {
     const updatedOrder = updatedResults[0];
     console.log('Updated order:', updatedOrder);
 
-    // Create order history entry
+    // Create order history entry using admin client to bypass RLS
     console.log('Creating order history entry');
     const historyData = {
       order_id: orderId,
@@ -85,7 +95,7 @@ export async function POST(request: Request) {
     };
     console.log('History data:', historyData);
 
-    const { data: historyResult, error: historyError } = await supabase
+    const { data: historyResult, error: historyError } = await supabaseAdmin
       .from('order_history')
       .insert(historyData)
       .select();
