@@ -7,6 +7,10 @@ import RealTimeClock from '@/components/real-time-clock';
 import LogoPlaceholder from '@/components/logo-placeholder';
 import { supabase } from '@/lib/supabase';
 
+// Import CSS for Leaflet and Toast
+import 'leaflet/dist/leaflet.css';
+import 'react-toastify/dist/ReactToastify.css';
+
 // Dynamically import the MapAssignment component to avoid SSR issues with Leaflet
 const MapAssignment = dynamic(() => import('@/components/map-assignment'), {
   ssr: false,
@@ -22,40 +26,48 @@ export default function MapAssignmentPage() {
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Check authentication on component mount
   useEffect(() => {
     let isMounted = true;
-    
+
     const getSession = async () => {
       try {
         console.log('MapAssignmentPage: Starting authentication check...');
-        
+
         // Try to get the session directly from Supabase
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        
+
         if (sessionError) {
           console.error('MapAssignmentPage: Session error:', sessionError);
           throw sessionError;
         }
-        
+
         if (!session) {
           console.log('MapAssignmentPage: No active session found');
           setError('No active session. Please log in.');
           setLoading(false);
           return;
         }
-        
+
         console.log('MapAssignmentPage: Session found, getting user...');
+
+        if (!session.user) {
+          console.log('MapAssignmentPage: No user in session');
+          setError('No user found in session. Please log in again.');
+          setLoading(false);
+          return;
+        }
+
         setUser(session.user);
-        
+
         // Get user profile
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', session.user.id)
           .single();
-        
+
         if (profileError) {
           console.error('MapAssignmentPage: Error fetching profile:', profileError);
           setError('Error fetching profile. Please try again.');
@@ -64,7 +76,7 @@ export default function MapAssignmentPage() {
         } else {
           console.log('MapAssignmentPage: Profile fetched:', profileData);
           setProfile(profileData);
-          
+
           // Verify this is an admin or shop owner
           if (profileData.role !== 'admin' && profileData.role !== 'shop_owner') {
             console.log('MapAssignmentPage: User is not authorized:', profileData.role);
@@ -83,15 +95,15 @@ export default function MapAssignmentPage() {
         }
       }
     };
-    
+
     getSession();
-    
+
     // Cleanup function to prevent state updates after unmount
     return () => {
       isMounted = false;
     };
   }, []);
-  
+
   const handleSignOut = async () => {
     try {
       console.log('MapAssignmentPage: Signing out...');
@@ -102,7 +114,7 @@ export default function MapAssignmentPage() {
       console.error('MapAssignmentPage: Error signing out:', err);
     }
   };
-  
+
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
       {/* Header */}
@@ -115,14 +127,14 @@ export default function MapAssignmentPage() {
                 <span className="ml-2 text-xl font-bold text-gray-900">etracking.store</span>
               </Link>
             </div>
-            
+
             <div className="flex items-center space-x-4">
               {profile && (
                 <span className="text-sm font-medium text-gray-700">
                   {profile.name} ({profile.role})
                 </span>
               )}
-              
+
               <button
                 onClick={handleSignOut}
                 className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
@@ -133,7 +145,7 @@ export default function MapAssignmentPage() {
           </div>
         </div>
       </header>
-      
+
       {/* Main Content */}
       <main className="flex-grow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -164,22 +176,22 @@ export default function MapAssignmentPage() {
                   </Link>
                 </div>
               </div>
-              
+
               <div className="bg-white shadow rounded-lg">
                 <div className="p-6">
                   <p className="text-gray-700 mb-6">
                     Drag and drop orders onto driver markers to assign them. The system will calculate the distance and estimated cost automatically.
                   </p>
-                  
+
                   {/* Map Assignment Component */}
-                  <MapAssignment />
+                  <MapAssignment supabaseClient={supabase} />
                 </div>
               </div>
             </div>
           )}
         </div>
       </main>
-      
+
       {/* Footer */}
       <footer className="bg-white border-t border-gray-200 py-3 mt-auto w-full">
         <div className="w-full px-4 sm:px-6 lg:px-8">
