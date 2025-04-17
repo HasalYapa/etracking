@@ -127,14 +127,7 @@ export default function SupabaseAnalyzerPage() {
       setSelectedTable(tableName);
       setResults([]);
 
-      // Get table columns
-      const { data: columnsData, error: columnsError } = await supabase
-        .from('information_schema.columns')
-        .select('column_name, data_type')
-        .eq('table_schema', 'public')
-        .eq('table_name', tableName);
-
-      if (columnsError) throw columnsError;
+      // We don't need to query columns anymore, we'll just use the relationships
 
       // Find foreign key relationships for this table
       const tableRelationships = foreignKeys.filter(fk =>
