@@ -10,6 +10,9 @@ const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
 export async function POST(request: Request) {
   try {
+    // In a production app, you would want to get the authenticated user from the request
+    // For simplicity, we'll use the driver ID passed in the request
+
     // Parse the request body
     const body = await request.json();
     const { orderId, driverId, shopId, status = 'in_transit', latitude = null, longitude = null } = body;
@@ -18,7 +21,7 @@ export async function POST(request: Request) {
 
     // Log the driver ID and shop ID to help diagnose issues
     if (!driverId) {
-      console.warn('scan-qr-code API: Driver ID is null or undefined, will use default');
+      console.warn('scan-qr-code API: No driver ID provided in the request');
     } else {
       console.log('scan-qr-code API: Using driver ID:', driverId);
     }
@@ -66,22 +69,26 @@ export async function POST(request: Request) {
     // Create the order history entry
     // Note: latitude and longitude are removed as they don't exist in the order_history table
     // CRITICAL: Make sure updated_by is never null to avoid not-null constraint violation
-    const effectiveDriverId = driverId || '9155a1e2-84d0-44ec-8174-f27f8b9cc03e'; // Default driver ID as fallback
 
     // BEST PRACTICE: Always use the driver ID as the updated_by field
     // This is the ID of the user who is actually performing the update
     // The driver is the one scanning the QR code, so they should be recorded as the updater
-    console.log('scan-qr-code API: Using driver ID as updated_by:', effectiveDriverId);
 
-    // Use the driver ID as the updated_by field
-    const effectiveUpdatedBy = effectiveDriverId;
-    console.log('scan-qr-code API: Using effective updated_by:', effectiveUpdatedBy);
+    // Make sure we have a valid driver ID
+    if (!driverId) {
+      return NextResponse.json({
+        success: false,
+        error: 'Driver ID is required for order history updates'
+      }, { status: 400 });
+    }
+
+    console.log('scan-qr-code API: Using driver ID as updated_by:', driverId);
 
     const historyData = {
       order_id: orderId,
       status,
       notes: `Status updated to ${status}`,
-      updated_by: effectiveUpdatedBy, // Use the effective updated_by that's guaranteed to be non-null
+      updated_by: driverId, // Use the driver ID as the updated_by field
       created_at: new Date().toISOString()
       // latitude and longitude fields removed
     };
@@ -109,10 +116,10 @@ export async function POST(request: Request) {
       try {
         console.log('scan-qr-code API: Trying direct SQL approach for order history');
 
-        // Make sure we use the effective updated_by that's guaranteed to be non-null
+        // Use the driver ID as the updated_by field
         const sql = `
           INSERT INTO order_history (order_id, status, notes, updated_by, created_at)
-          VALUES ('${orderId}', '${status}', 'Status updated to ${status}', '${effectiveUpdatedBy}', '${new Date().toISOString()}')
+          VALUES ('${orderId}', '${status}', 'Status updated to ${status}', '${driverId}', '${new Date().toISOString()}')
           RETURNING *;
         `;
 
@@ -138,10 +145,9 @@ export async function POST(request: Request) {
     }
 
     // Update the order status
-    // Use the effective driver ID that's guaranteed to be non-null
     const updateData = {
       status,
-      driver_id: effectiveDriverId, // Use the effective driver ID
+      driver_id: driverId, // Use the driver ID
       updated_at: new Date().toISOString(),
       // If we have a shop ID, update the shop_id field
       ...(shopId ? { shop_id: shopId } : {})
