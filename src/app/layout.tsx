@@ -17,6 +17,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "eTracking.store - Delivery Tracking for Small Businesses",
   description: "Simple, Real-Time Delivery Tracking for Sri Lankan Small Businesses",
+  icons: {
+    icon: [
+      { url: '/images/logo.png' },
+    ],
+  },
 };
 
 export const viewport = {
