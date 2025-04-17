@@ -59,7 +59,7 @@ export async function GET(request: Request) {
 
     // Add filter for unread notifications if requested
     if (unreadOnly) {
-      query = query.eq('read', false);
+      query = query.eq('status', 'pending');
     }
 
     // Execute the query
@@ -82,7 +82,7 @@ export async function POST(request: Request) {
   try {
     // Parse request body
     const body = await request.json();
-    const { driverId, notificationId, action, read } = body;
+    const { driverId, notificationId, action } = body;
 
     if (!driverId) {
       return NextResponse.json({ error: 'Driver ID is required' }, { status: 400 });
@@ -125,12 +125,13 @@ export async function POST(request: Request) {
       updated_at: new Date().toISOString()
     };
 
-    // Update read status if provided
-    if (read !== undefined) {
-      updateData.read = read;
+    // Handle mark_read action
+    if (action === 'mark_read') {
+      // We'll just update the status to 'read' instead of using a separate column
+      updateData.status = 'read';
     }
 
-    // Handle accept/reject actions
+    // Handle accept/reject/mark_read actions
     if (action === 'accept' || action === 'reject') {
       updateData.status = action === 'accept' ? 'accepted' : 'rejected';
 

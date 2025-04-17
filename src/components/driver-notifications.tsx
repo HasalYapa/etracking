@@ -8,8 +8,7 @@ interface DriverNotification {
   driver_id: string;
   order_id: string;
   message: string;
-  status: 'pending' | 'accepted' | 'rejected' | 'expired';
-  read: boolean;
+  status: 'pending' | 'accepted' | 'rejected' | 'expired' | 'read';
   created_at: string;
   updated_at: string;
   order?: {
@@ -134,7 +133,7 @@ export default function DriverNotifications({ driverId, onAccept, onReject }: Dr
         body: JSON.stringify({
           driverId,
           notificationId,
-          read: true,
+          action: 'mark_read', // Use action instead of read property
         }),
       });
 
@@ -142,7 +141,7 @@ export default function DriverNotifications({ driverId, onAccept, onReject }: Dr
       setNotifications(prev =>
         prev.map(notification =>
           notification.id === notificationId
-            ? { ...notification, read: true }
+            ? { ...notification, status: 'read' }
             : notification
         )
       );
@@ -184,10 +183,8 @@ export default function DriverNotifications({ driverId, onAccept, onReject }: Dr
       {notifications.map(notification => (
         <div
           key={notification.id}
-          className={`p-4 bg-white rounded-lg shadow-md border-l-4 ${
-            notification.read ? 'border-gray-300' : 'border-blue-500'
-          }`}
-          onClick={() => !notification.read && markAsRead(notification.id)}
+          className="p-4 bg-white rounded-lg shadow-md border-l-4 border-blue-500"
+          onClick={() => markAsRead(notification.id)}
         >
           <div className="flex justify-between items-start mb-2">
             <h4 className="font-medium text-gray-800">
@@ -215,7 +212,7 @@ export default function DriverNotifications({ driverId, onAccept, onReject }: Dr
             </div>
           )}
 
-          {notification.status === 'pending' && (
+          {(notification.status === 'pending') && (
             <div className="flex space-x-2 mt-2">
               <button
                 onClick={(e) => {
