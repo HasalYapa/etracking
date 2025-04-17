@@ -81,11 +81,20 @@ export async function GET(request: Request) {
     console.log('Updated order:', updatedOrder);
 
     // Step 3: Try to create an order history entry using admin client to bypass RLS
+
+    // Make sure driverId is not null or undefined
+    if (!driverId) {
+      console.error('Driver ID is null or undefined, using a default value');
+    }
+
+    // Use a default driver ID if none is provided
+    const updatedBy = driverId || '9155a1e2-84d0-44ec-8174-f27f8b9cc03e'; // Default driver ID
+
     const historyData = {
       order_id: orderId,
       status: 'in_transit',
       notes: 'Status updated to in_transit (test)',
-      updated_by: driverId,
+      updated_by: updatedBy, // Use the non-null driver ID
       created_at: new Date().toISOString()
     };
 

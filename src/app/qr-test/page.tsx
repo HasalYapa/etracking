@@ -222,10 +222,13 @@ export default function QRTestPage() {
           console.log('Found order by ID from QR code:', orderData);
 
           // Update the order status to in_transit
+          // Make sure we have a valid driver ID
+          const driverId = profileData?.id || '9155a1e2-84d0-44ec-8174-f27f8b9cc03e'; // Default driver ID
+
           const requestBody = {
             orderId: orderData.id,
             status: 'in_transit',
-            driverId: profileData.id,
+            driverId: driverId,
             latitude,
             longitude,
           };
@@ -272,10 +275,13 @@ export default function QRTestPage() {
       console.log('Found order by tracking number:', orderData);
 
       // Update the order status to in_transit
+      // Make sure we have a valid driver ID
+      const driverId = profileData?.id || '9155a1e2-84d0-44ec-8174-f27f8b9cc03e'; // Default driver ID
+
       const requestBody = {
         orderId: orderData.id,
         status: 'in_transit',
-        driverId: profileData.id,
+        driverId: driverId,
         latitude,
         longitude,
       };

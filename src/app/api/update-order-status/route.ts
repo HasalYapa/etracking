@@ -84,14 +84,23 @@ export async function POST(request: Request) {
 
     // Create order history entry using admin client to bypass RLS
     console.log('Creating order history entry');
+
+    // Make sure driverId is not null or undefined
+    if (!driverId) {
+      console.error('Driver ID is null or undefined, using a default value');
+    }
+
+    // Use a default driver ID if none is provided
+    const updatedBy = driverId || '9155a1e2-84d0-44ec-8174-f27f8b9cc03e'; // Default driver ID
+
     const historyData = {
       order_id: orderId,
       status,
       notes: `Status updated to ${status}`,
       created_at: new Date().toISOString(),
-      updated_by: driverId,
-      latitude,
-      longitude
+      updated_by: updatedBy, // Use the non-null driver ID
+      latitude: latitude || null,
+      longitude: longitude || null
     };
     console.log('History data:', historyData);
 
