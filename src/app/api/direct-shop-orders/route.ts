@@ -24,7 +24,7 @@ export async function GET(request: Request) {
       .from('orders')
       .select(`
         *,
-        customers (
+        customers:customers (
           name,
           phone,
           email,

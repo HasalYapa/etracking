@@ -437,7 +437,7 @@ export default function MinimalDriverPage() {
         .from('orders')
         .select(`
           *,
-          customers(*)
+          customers:customers(*)
         `)
         .eq('driver_id', driverId)
         .order('created_at', { ascending: false });
