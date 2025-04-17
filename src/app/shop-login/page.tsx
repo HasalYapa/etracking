@@ -33,49 +33,32 @@ export default function ShopLogin() {
     try {
       console.log('Attempting to sign in with:', email);
 
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      // Use the API endpoint for login
+      const response = await fetch('/api/shop-login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
       });
 
-      if (error) {
-        console.error('Login error:', error);
-        setError(error.message);
+      const result = await response.json();
+
+      if (!response.ok) {
+        console.error('Login error:', result.error);
+        setError(result.error || 'Login failed');
         return;
       }
 
-      console.log('Sign in successful:', data);
-
-      // Verify that the user has the correct role
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('role, name, email')
-        .eq('id', data.user.id)
-        .single();
-
-      if (profileError) {
-        console.error('Error fetching profile:', profileError);
-        setError('Error verifying user role. Please try again.');
-        return;
-      }
-
-      console.log('Profile found:', profile);
-
-      if (profile.role !== 'shop_owner') {
-        console.error(`User is not a shop owner (${profile.role})`);
-        setError('Access denied. This login is for shop owners only.');
-        await supabase.auth.signOut();
-        return;
-      }
-
-      setSuccess(`Login successful! Welcome, ${profile.name}. Redirecting...`);
+      console.log('Sign in successful:', result);
+      setSuccess(`${result.message}. Redirecting...`);
 
       // Store the session in localStorage to ensure it's available
-      if (data.session) {
+      if (result.session) {
         // Store in the correct Supabase format
         localStorage.setItem('sb-slujerwtublzuxtzdtyw-auth-token', JSON.stringify({
-          access_token: data.session.access_token,
-          refresh_token: data.session.refresh_token,
+          access_token: result.session.access_token,
+          refresh_token: result.session.refresh_token,
           expires_at: Math.floor(Date.now() / 1000) + 3600
         }));
       }
