@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import supabase from '@/utils/supabase-client';
 
 interface DriverNotification {
   id: string;
@@ -103,7 +103,7 @@ export default function DriverNotifications({ driverId, onAccept, onReject }: Dr
       }
 
       // Update local state
-      setNotifications(prev => 
+      setNotifications(prev =>
         prev.filter(notification => notification.id !== notificationId)
       );
 
@@ -137,10 +137,10 @@ export default function DriverNotifications({ driverId, onAccept, onReject }: Dr
       });
 
       // Update local state
-      setNotifications(prev => 
-        prev.map(notification => 
-          notification.id === notificationId 
-            ? { ...notification, read: true } 
+      setNotifications(prev =>
+        prev.map(notification =>
+          notification.id === notificationId
+            ? { ...notification, read: true }
             : notification
         )
       );
@@ -178,10 +178,10 @@ export default function DriverNotifications({ driverId, onAccept, onReject }: Dr
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-semibold text-gray-800">New Order Assignments</h3>
-      
+
       {notifications.map(notification => (
-        <div 
-          key={notification.id} 
+        <div
+          key={notification.id}
           className={`p-4 bg-white rounded-lg shadow-md border-l-4 ${
             notification.read ? 'border-gray-300' : 'border-blue-500'
           }`}
@@ -195,9 +195,9 @@ export default function DriverNotifications({ driverId, onAccept, onReject }: Dr
               {new Date(notification.created_at).toLocaleString()}
             </span>
           </div>
-          
+
           <p className="text-gray-600 mb-2">{notification.message}</p>
-          
+
           {notification.order && (
             <div className="mb-3 text-sm">
               <p><strong>Address:</strong> {notification.order.delivery_address}</p>
@@ -212,7 +212,7 @@ export default function DriverNotifications({ driverId, onAccept, onReject }: Dr
               )}
             </div>
           )}
-          
+
           {notification.status === 'pending' && (
             <div className="flex space-x-2 mt-2">
               <button

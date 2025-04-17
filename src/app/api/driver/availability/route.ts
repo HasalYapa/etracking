@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
-import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
+import { createServerClient } from '@supabase/ssr';
 
 // Create a Supabase client with service role key to bypass RLS
 const supabaseUrl = 'https://slujerwtublzuxtzdtyw.supabase.co';
@@ -15,7 +15,23 @@ export async function GET(request: Request) {
   try {
     // Get the authenticated user
     const cookieStore = cookies();
-    const supabase = createPagesServerClient({ cookies: () => cookieStore });
+    const supabase = createServerClient(
+      supabaseUrl,
+      supabaseServiceKey,
+      {
+        cookies: {
+          get(name: string) {
+            return cookieStore.get(name)?.value;
+          },
+          set(name: string, value: string, options: any) {
+            cookieStore.set(name, value);
+          },
+          remove(name: string, options: any) {
+            cookieStore.delete(name);
+          },
+        },
+      }
+    );
     const { data: { session } } = await supabase.auth.getSession();
 
     if (!session) {
@@ -77,7 +93,23 @@ export async function POST(request: Request) {
   try {
     // Get the authenticated user
     const cookieStore = cookies();
-    const supabase = createPagesServerClient({ cookies: () => cookieStore });
+    const supabase = createServerClient(
+      supabaseUrl,
+      supabaseServiceKey,
+      {
+        cookies: {
+          get(name: string) {
+            return cookieStore.get(name)?.value;
+          },
+          set(name: string, value: string, options: any) {
+            cookieStore.set(name, value);
+          },
+          remove(name: string, options: any) {
+            cookieStore.delete(name);
+          },
+        },
+      }
+    );
     const { data: { session } } = await supabase.auth.getSession();
 
     if (!session) {
@@ -127,7 +159,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       data: updatedAvailability,
       message: `Driver availability updated to ${available ? 'available' : 'unavailable'}`
     });
