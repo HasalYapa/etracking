@@ -68,6 +68,16 @@ export default function MinimalDriverPage() {
     }
   }, []);
 
+  // Check for debug mode
+  const [debugMode, setDebugMode] = useState(false);
+
+  useEffect(() => {
+    // Check if debug mode is enabled via URL parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    const debug = urlParams.get('debug');
+    setDebugMode(debug === 'true');
+  }, []);
+
   useEffect(() => {
     let isMounted = true;
 
@@ -75,6 +85,13 @@ export default function MinimalDriverPage() {
       try {
         if (isMounted) setLoading(true);
         console.log('MinimalDriverPage: Starting authentication check...');
+
+        // If in debug mode, show more detailed information
+        if (debugMode) {
+          console.log('MinimalDriverPage: Debug mode enabled');
+          console.log('MinimalDriverPage: localStorage content:', localStorage);
+          console.log('MinimalDriverPage: Cookies:', document.cookie);
+        }
 
         // Try to get session from localStorage first
         let sessionToken = null;
@@ -85,6 +102,9 @@ export default function MinimalDriverPage() {
             if (parsedSession?.currentSession?.access_token) {
               sessionToken = parsedSession.currentSession.access_token;
               console.log('MinimalDriverPage: Found session token in localStorage');
+              if (debugMode) {
+                console.log('MinimalDriverPage: Session token:', sessionToken);
+              }
             }
           }
         } catch (storageErr) {
@@ -475,7 +495,29 @@ export default function MinimalDriverPage() {
             <span className="block sm:inline">{error}</span>
           </div>
 
+          {debugMode && (
+            <div className="mt-4 bg-blue-50 p-4 rounded-lg">
+              <h3 className="text-sm font-medium text-blue-800 mb-2">Debug Information:</h3>
+              <p className="text-xs text-blue-700 mb-2">This information is only visible in debug mode.</p>
+              <div className="text-xs text-blue-800 overflow-auto max-h-40">
+                <p><strong>URL:</strong> {window.location.href}</p>
+                <p><strong>localStorage Keys:</strong> {Object.keys(localStorage).join(', ') || 'None'}</p>
+                <p><strong>Cookies:</strong> {document.cookie || 'None'}</p>
+                <p><strong>User Agent:</strong> {navigator.userAgent}</p>
+              </div>
+              <div className="mt-4">
+                <Link href="/diagnostic" className="text-sm text-blue-600 hover:text-blue-800 font-medium">
+                  Go to Diagnostic Tool
+                </Link>
+              </div>
+            </div>
+          )}
 
+          <div className="mt-6 flex justify-center">
+            <Link href="/driver-login" className="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+              Return to Login
+            </Link>
+          </div>
         </div>
       </div>
     );
