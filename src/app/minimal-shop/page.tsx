@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { QRCodeSVG } from 'qrcode.react';
 import RealTimeClock from '@/components/real-time-clock';
+import LogoPlaceholder from '@/components/logo-placeholder';
 
 // Hardcoded shop owner ID (Sampath)
 const shopOwnerId = '9939c3f3-e3fc-4af7-9ecd-31ab535bce59';
@@ -187,8 +188,8 @@ export default function MinimalShopPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white p-4 sm:p-6">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6 w-full">
         <header className="bg-white shadow-md rounded-xl p-5 mb-8">
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
             <div className="flex items-center">
@@ -619,12 +620,12 @@ export default function MinimalShopPage() {
       </div>
 
       {/* Footer */}
-      <footer className="bg-white border-t border-gray-200 py-4 mt-auto">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <footer className="bg-white border-t border-gray-200 py-2 mt-auto w-full">
+        <div className="w-full px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row justify-between items-center">
-            <div className="flex items-center mb-4 md:mb-0">
-              <span className="font-bold text-blue-600 mr-2">etracking</span>
-              <span className="text-sm text-gray-600">© 2021-{new Date().getFullYear()} etracking.store. All rights reserved.</span>
+            <div className="flex items-center mb-2 md:mb-0 gap-3">
+              <LogoPlaceholder />
+              <span className="text-xs text-gray-600">© 2021-{new Date().getFullYear()} etracking.store. All rights reserved.</span>
             </div>
             <RealTimeClock />
           </div>
