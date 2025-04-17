@@ -538,6 +538,7 @@ export default function MinimalDriverPage() {
 
           // Use the dedicated API endpoint for QR code scanning
           console.log('MinimalDriverPage: Using scan-qr-code API endpoint');
+          console.log('MinimalDriverPage: QR code data shopId:', data.shopId);
 
           const response = await fetch('/api/scan-qr-code', {
             method: 'POST',
@@ -547,7 +548,7 @@ export default function MinimalDriverPage() {
             body: JSON.stringify({
               orderId: orderByIdData.id,
               driverId: profile.id,
-              shopId: data.shopId, // Include the shop ID from the QR code
+              shopId: data.shopId || '9939c3f3-e3fc-4af7-9ecd-31ab535bce59', // Include the shop ID from the QR code with fallback
               status: 'in_transit',
               latitude: latitude,
               longitude: longitude
@@ -623,6 +624,8 @@ export default function MinimalDriverPage() {
         // Use the dedicated API endpoint for QR code scanning
         console.log('MinimalDriverPage: Using scan-qr-code API endpoint');
 
+        console.log('MinimalDriverPage: QR code data shopId:', data.shopId);
+
         const response = await fetch('/api/scan-qr-code', {
           method: 'POST',
           headers: {
@@ -631,7 +634,7 @@ export default function MinimalDriverPage() {
           body: JSON.stringify({
             orderId: orderByIdData.id,
             driverId: profile.id,
-            shopId: data.shopId, // Include the shop ID from the QR code
+            shopId: data.shopId || '9939c3f3-e3fc-4af7-9ecd-31ab535bce59', // Include the shop ID from the QR code with fallback
             status: 'in_transit',
             latitude: latitude,
             longitude: longitude
@@ -675,6 +678,8 @@ export default function MinimalDriverPage() {
       // Use the dedicated API endpoint for QR code scanning
       console.log('MinimalDriverPage: Using scan-qr-code API endpoint');
 
+      console.log('MinimalDriverPage: QR code data shopId:', data.shopId);
+
       const response = await fetch('/api/scan-qr-code', {
         method: 'POST',
         headers: {
@@ -683,7 +688,7 @@ export default function MinimalDriverPage() {
         body: JSON.stringify({
           orderId: orderData.id,
           driverId: profile.id,
-          shopId: data.shopId, // Include the shop ID from the QR code
+          shopId: data.shopId || '9939c3f3-e3fc-4af7-9ecd-31ab535bce59', // Include the shop ID from the QR code with fallback
           status: 'in_transit',
           latitude: latitude,
           longitude: longitude

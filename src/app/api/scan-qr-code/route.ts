@@ -68,27 +68,10 @@ export async function POST(request: Request) {
     // CRITICAL: Make sure updated_by is never null to avoid not-null constraint violation
     const effectiveDriverId = driverId || '9155a1e2-84d0-44ec-8174-f27f8b9cc03e'; // Default driver ID as fallback
 
-    // If we have a shop ID, use it to get the shop owner ID
-    let shopOwnerId = null;
-    if (shopId) {
-      try {
-        // Try to get the shop owner profile
-        const { data: shopData, error: shopError } = await supabaseAdmin
-          .from('profiles')
-          .select('id')
-          .eq('id', shopId)
-          .single();
-
-        if (!shopError && shopData) {
-          shopOwnerId = shopData.id;
-          console.log('scan-qr-code API: Found shop owner ID:', shopOwnerId);
-        } else {
-          console.warn('scan-qr-code API: Could not find shop owner with ID:', shopId);
-        }
-      } catch (shopErr) {
-        console.error('scan-qr-code API: Error getting shop owner:', shopErr);
-      }
-    }
+    // If we have a shop ID, use it directly as the updated_by field
+    // In this application, the shop ID is the same as the shop owner ID
+    let shopOwnerId = shopId;
+    console.log('scan-qr-code API: Using shop ID directly as shop owner ID:', shopOwnerId);
 
     // Use the shop owner ID as the updated_by if available, otherwise use the driver ID
     const effectiveUpdatedBy = shopOwnerId || effectiveDriverId;
@@ -108,6 +91,9 @@ export async function POST(request: Request) {
       console.error('scan-qr-code API: updated_by is still null after assignment, using hardcoded default');
       historyData.updated_by = '9155a1e2-84d0-44ec-8174-f27f8b9cc03e'; // Hardcoded default driver ID
     }
+
+    // Log the final historyData for debugging
+    console.log('scan-qr-code API: Final historyData:', JSON.stringify(historyData, null, 2));
 
     console.log('scan-qr-code API: Creating order history entry:', historyData);
 
