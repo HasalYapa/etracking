@@ -34,17 +34,34 @@ export default function DriverOrderDetail({ orderId, isOpen, onClose }: DriverOr
           .from('orders')
           .select(`
             *,
-            customer:customers(*),
-            shop:profiles(id, name, email, phone)
+            customer:customers(*)
           `)
           .eq('id', orderId)
           .single();
+
+        // Separately fetch shop details if needed
+        let shopData = null;
+        if (orderData?.shop_id) {
+          const { data: shop, error: shopError } = await supabase
+            .from('profiles')
+            .select('id, name, email, phone')
+            .eq('id', orderData.shop_id)
+            .single();
+
+          if (!shopError) {
+            shopData = shop;
+          }
+        }
 
         if (orderError) {
           throw new Error(orderError.message);
         }
 
-        setOrder(orderData);
+        // Combine order data with shop data
+        setOrder({
+          ...orderData,
+          shop: shopData
+        });
 
         // Fetch order history
         const { data: historyData, error: historyError } = await supabase
@@ -141,7 +158,7 @@ export default function DriverOrderDetail({ orderId, isOpen, onClose }: DriverOr
                   <MapPin className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
                   <span className="text-sm">{order.delivery_address}</span>
                 </div>
-                
+
                 {order.customer && (
                   <>
                     <div className="flex items-center space-x-2">
@@ -154,7 +171,7 @@ export default function DriverOrderDetail({ orderId, isOpen, onClose }: DriverOr
                     </div>
                   </>
                 )}
-                
+
                 {order.delivery_notes && (
                   <div className="mt-2 text-sm bg-gray-50 p-2 rounded-md">
                     <p className="font-medium mb-1">Delivery Notes:</p>
