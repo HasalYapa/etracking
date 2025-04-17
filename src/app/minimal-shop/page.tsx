@@ -10,6 +10,11 @@ import { supabase } from '@/lib/supabase';
 // Hardcoded shop owner ID (Sampath)
 const shopOwnerId = '9939c3f3-e3fc-4af7-9ecd-31ab535bce59';
 
+// Store the shop ID in localStorage for QR code generation
+if (typeof window !== 'undefined') {
+  localStorage.setItem('currentShopId', shopOwnerId);
+}
+
 // Generate ET tracking number
 const generateTrackingNumber = () => {
   const randomPart = Math.floor(10000000 + Math.random() * 90000000);
@@ -167,9 +172,14 @@ export default function MinimalShopPage() {
         throw new Error(data.error || 'Failed to create order');
       }
 
-      // Generate QR code for the driver using a simpler format
-      // Format: tracking_number|delivery_address|order_id
-      const qrData = `${formData.tracking_number}|${formData.delivery_address || 'Unknown'}|${data.order.id}`;
+      // Generate QR code for the driver using JSON format with all necessary information
+      const qrData = JSON.stringify({
+        trackingNumber: formData.tracking_number,
+        location: formData.delivery_address || 'Unknown',
+        orderId: data.order.id,
+        shopId: shopOwnerId,  // Include the shop ID
+        timestamp: new Date().toISOString()
+      });
       console.log('Generated QR code data for new order:', qrData);
 
       setQRCodeData(qrData);
@@ -213,9 +223,14 @@ export default function MinimalShopPage() {
   };
 
   const generateQRCode = (order: any) => {
-    // Use a simpler format that's easier to parse
-    // Format: tracking_number|delivery_address|order_id
-    const qrData = `${order.tracking_number}|${order.delivery_address || 'Unknown'}|${order.id}`;
+    // Use JSON format with all necessary information
+    const qrData = JSON.stringify({
+      trackingNumber: order.tracking_number,
+      location: order.delivery_address || 'Unknown',
+      orderId: order.id,
+      shopId: shopOwnerId,  // Include the shop ID
+      timestamp: new Date().toISOString()
+    });
     console.log('Generated QR code data:', qrData);
 
     setQRCodeData(qrData);

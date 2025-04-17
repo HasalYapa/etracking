@@ -499,7 +499,7 @@ export default function MinimalDriverPage() {
   };
 
   // Handle QR code scan
-  const handleScan = async (data: { trackingNumber: string; location: string; driverPhone?: string; orderId?: string }) => {
+  const handleScan = async (data: { trackingNumber: string; location: string; driverPhone?: string; orderId?: string; shopId?: string }) => {
     console.log('MinimalDriverPage: QR code scanned with data:', data);
     try {
       setScanResult(data);
@@ -547,6 +547,7 @@ export default function MinimalDriverPage() {
             body: JSON.stringify({
               orderId: orderByIdData.id,
               driverId: profile.id,
+              shopId: data.shopId, // Include the shop ID from the QR code
               status: 'in_transit',
               latitude: latitude,
               longitude: longitude
@@ -623,6 +624,7 @@ export default function MinimalDriverPage() {
           body: JSON.stringify({
             orderId: orderByIdData.id,
             driverId: profile.id,
+            shopId: data.shopId, // Include the shop ID from the QR code
             status: 'in_transit',
             latitude: latitude,
             longitude: longitude
@@ -667,6 +669,7 @@ export default function MinimalDriverPage() {
         body: JSON.stringify({
           orderId: orderData.id,
           driverId: profile.id,
+          shopId: data.shopId, // Include the shop ID from the QR code
           status: 'in_transit',
           latitude: latitude,
           longitude: longitude
@@ -762,6 +765,7 @@ export default function MinimalDriverPage() {
         body: JSON.stringify({
           orderId: orderId,
           driverId: profile.id,
+          // We don't have shopId here, but the API will handle it
           status: newStatus,
           latitude: latitude,
           longitude: longitude

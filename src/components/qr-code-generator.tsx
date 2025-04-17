@@ -23,13 +23,15 @@ export default function QRCodeGenerator({
   const [error, setError] = useState<string | null>(null);
 
   // Create QR code data
-  // Format: JSON or trackingNumber|location|driverPhone
+  // Format: JSON with all necessary information
   // This format must match what the scanner expects
   const qrData = JSON.stringify({
     trackingNumber,
     location,
     driverPhone: includeDriverInfo ? driverPhone : undefined,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    // Include the shop ID if available from localStorage
+    shopId: typeof window !== 'undefined' ? localStorage.getItem('currentShopId') : undefined
   });
 
   // Function to download QR code as image

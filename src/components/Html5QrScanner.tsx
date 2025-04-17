@@ -34,7 +34,9 @@ export default function Html5QRScanner({ onScan, onError }: Html5QRScannerProps)
           return {
             trackingNumber: jsonData.trackingNumber,
             location: jsonData.location || 'Unknown',
-            driverPhone: jsonData.driverPhone
+            driverPhone: jsonData.driverPhone,
+            orderId: jsonData.orderId,  // Extract order ID if available
+            shopId: jsonData.shopId     // Extract shop ID if available
           };
         } else if (jsonData.tracking_number) {
           // Handle shop QR code format
@@ -42,7 +44,9 @@ export default function Html5QRScanner({ onScan, onError }: Html5QRScannerProps)
           return {
             trackingNumber: jsonData.tracking_number,
             location: jsonData.delivery_address || jsonData.location || 'Unknown',
-            driverPhone: undefined
+            driverPhone: undefined,
+            orderId: jsonData.order_id,  // Extract order ID if available
+            shopId: jsonData.shop_id || jsonData.shopId  // Extract shop ID if available
           };
         } else if (jsonData.order_id) {
           // Another possible format
@@ -50,7 +54,9 @@ export default function Html5QRScanner({ onScan, onError }: Html5QRScannerProps)
           return {
             trackingNumber: jsonData.order_id,
             location: jsonData.delivery_address || jsonData.location || 'Unknown',
-            driverPhone: undefined
+            driverPhone: undefined,
+            orderId: jsonData.order_id,
+            shopId: jsonData.shop_id || jsonData.shopId
           };
         } else {
           // If we have JSON but no recognized fields, log all keys
@@ -95,13 +101,15 @@ export default function Html5QRScanner({ onScan, onError }: Html5QRScannerProps)
           const trackingNumber = parts[0].trim();
           const location = parts[1].trim();
           const orderId = parts.length > 2 ? parts[2].trim() : undefined;
+          const shopId = parts.length > 3 ? parts[3].trim() : undefined;
 
-          console.log('Successfully parsed as pipe-delimited:', { trackingNumber, location, orderId });
+          console.log('Successfully parsed as pipe-delimited:', { trackingNumber, location, orderId, shopId });
           return {
             trackingNumber,
             location,
             driverPhone: undefined,
-            orderId // Store the order ID if available
+            orderId, // Store the order ID if available
+            shopId   // Store the shop ID if available
           };
         }
       } catch (pipeErr) {

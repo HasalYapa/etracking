@@ -12,15 +12,21 @@ export async function POST(request: Request) {
   try {
     // Parse the request body
     const body = await request.json();
-    const { orderId, driverId, status = 'in_transit', latitude = null, longitude = null } = body;
+    const { orderId, driverId, shopId, status = 'in_transit', latitude = null, longitude = null } = body;
 
-    console.log('scan-qr-code API: Received request:', { orderId, driverId, status, latitude, longitude });
+    console.log('scan-qr-code API: Received request:', { orderId, driverId, shopId, status, latitude, longitude });
 
-    // Log the driver ID to help diagnose issues
+    // Log the driver ID and shop ID to help diagnose issues
     if (!driverId) {
       console.warn('scan-qr-code API: Driver ID is null or undefined, will use default');
     } else {
       console.log('scan-qr-code API: Using driver ID:', driverId);
+    }
+
+    if (!shopId) {
+      console.warn('scan-qr-code API: Shop ID is null or undefined');
+    } else {
+      console.log('scan-qr-code API: Using shop ID:', shopId);
     }
 
     // Validate required fields
@@ -62,11 +68,37 @@ export async function POST(request: Request) {
     // CRITICAL: Make sure updated_by is never null to avoid not-null constraint violation
     const effectiveDriverId = driverId || '9155a1e2-84d0-44ec-8174-f27f8b9cc03e'; // Default driver ID as fallback
 
+    // If we have a shop ID, use it to get the shop owner ID
+    let shopOwnerId = null;
+    if (shopId) {
+      try {
+        // Try to get the shop owner profile
+        const { data: shopData, error: shopError } = await supabaseAdmin
+          .from('profiles')
+          .select('id')
+          .eq('id', shopId)
+          .single();
+
+        if (!shopError && shopData) {
+          shopOwnerId = shopData.id;
+          console.log('scan-qr-code API: Found shop owner ID:', shopOwnerId);
+        } else {
+          console.warn('scan-qr-code API: Could not find shop owner with ID:', shopId);
+        }
+      } catch (shopErr) {
+        console.error('scan-qr-code API: Error getting shop owner:', shopErr);
+      }
+    }
+
+    // Use the shop owner ID as the updated_by if available, otherwise use the driver ID
+    const effectiveUpdatedBy = shopOwnerId || effectiveDriverId;
+    console.log('scan-qr-code API: Using effective updated_by:', effectiveUpdatedBy);
+
     const historyData = {
       order_id: orderId,
       status,
       notes: `Status updated to ${status}`,
-      updated_by: effectiveDriverId, // Use the effective driver ID that's guaranteed to be non-null
+      updated_by: effectiveUpdatedBy, // Use the effective updated_by that's guaranteed to be non-null
       created_at: new Date().toISOString()
       // latitude and longitude fields removed
     };
@@ -91,10 +123,10 @@ export async function POST(request: Request) {
       try {
         console.log('scan-qr-code API: Trying direct SQL approach for order history');
 
-        // Make sure we use the effective driver ID that's guaranteed to be non-null
+        // Make sure we use the effective updated_by that's guaranteed to be non-null
         const sql = `
           INSERT INTO order_history (order_id, status, notes, updated_by, created_at)
-          VALUES ('${orderId}', '${status}', 'Status updated to ${status}', '${effectiveDriverId}', '${new Date().toISOString()}')
+          VALUES ('${orderId}', '${status}', 'Status updated to ${status}', '${effectiveUpdatedBy}', '${new Date().toISOString()}')
           RETURNING *;
         `;
 
@@ -124,7 +156,9 @@ export async function POST(request: Request) {
     const updateData = {
       status,
       driver_id: effectiveDriverId, // Use the effective driver ID
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
+      // If we have a shop ID, update the shop_id field
+      ...(shopId ? { shop_id: shopId } : {})
     };
 
     console.log('scan-qr-code API: Updating order status:', updateData);
