@@ -377,6 +377,10 @@ export default function DiagnosticPage() {
                 Supabase Query Analyzer
               </Link>
 
+              <Link href="/database-manager" className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                Database Manager
+              </Link>
+
               <Link href="/" className="inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                 Home Page
               </Link>
