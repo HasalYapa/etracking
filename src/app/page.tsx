@@ -52,7 +52,7 @@ export default function Home() {
             <WobbleCard containerClassName="col-span-1 bg-purple-800 min-h-[200px]">
               <h3 className="text-xl font-semibold text-white mb-3">Admin</h3>
               <p className="text-neutral-200 mb-4">Access the admin dashboard to manage all shops, drivers, and orders.</p>
-              <Link href="/admin-login" className="block w-full bg-white hover:bg-purple-100 text-purple-800 py-2 px-4 rounded text-center font-medium">
+              <Link href="/login" className="block w-full bg-white hover:bg-purple-100 text-purple-800 py-2 px-4 rounded text-center font-medium">
                 Admin Login
               </Link>
             </WobbleCard>
@@ -61,7 +61,7 @@ export default function Home() {
             <WobbleCard containerClassName="col-span-1 bg-blue-800 min-h-[200px]">
               <h3 className="text-xl font-semibold text-white mb-3">Shop Owner</h3>
               <p className="text-neutral-200 mb-4">Manage your shop's orders and track deliveries in real-time.</p>
-              <Link href="/shop-login" className="block w-full bg-white hover:bg-blue-100 text-blue-800 py-2 px-4 rounded text-center font-medium">
+              <Link href="/login" className="block w-full bg-white hover:bg-blue-100 text-blue-800 py-2 px-4 rounded text-center font-medium">
                 Shop Owner Login
               </Link>
               <Link href="/shop-signup" className="block w-full bg-blue-200 hover:bg-blue-300 text-blue-800 py-2 px-4 rounded text-center mt-2 font-medium">
@@ -73,7 +73,7 @@ export default function Home() {
             <WobbleCard containerClassName="col-span-1 bg-green-800 min-h-[200px]">
               <h3 className="text-xl font-semibold text-white mb-3">Driver</h3>
               <p className="text-neutral-200 mb-4">View your delivery assignments and update delivery status on the go.</p>
-              <Link href="/driver-login" className="block w-full bg-white hover:bg-green-100 text-green-800 py-2 px-4 rounded text-center font-medium">
+              <Link href="/login" className="block w-full bg-white hover:bg-green-100 text-green-800 py-2 px-4 rounded text-center font-medium">
                 Driver Login
               </Link>
               <Link href="/driver-signup" className="block w-full bg-green-200 hover:bg-green-300 text-green-800 py-2 px-4 rounded text-center mt-2 font-medium">
@@ -267,9 +267,9 @@ export default function Home() {
               <h3 className="text-lg font-semibold mb-4">Quick Links</h3>
               <ul className="space-y-2">
                 <li><Link href="/direct-access" className="text-blue-100 hover:text-white transition-colors">Direct Access</Link></li>
-                <li><Link href="/shop-login" className="text-blue-100 hover:text-white transition-colors">Shop Owner Login</Link></li>
-                <li><Link href="/driver-login" className="text-blue-100 hover:text-white transition-colors">Driver Login</Link></li>
-                <li><Link href="/admin-login" className="text-blue-100 hover:text-white transition-colors">Admin Login</Link></li>
+                <li><Link href="/login" className="text-blue-100 hover:text-white transition-colors">Login</Link></li>
+                <li><Link href="/minimal-shop" className="text-blue-100 hover:text-white transition-colors">Shop Dashboard</Link></li>
+                <li><Link href="/minimal-driver" className="text-blue-100 hover:text-white transition-colors">Driver Dashboard</Link></li>
               </ul>
             </div>
 

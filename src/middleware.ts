@@ -97,7 +97,10 @@ export async function middleware(request: NextRequest) {
     // Protected routes - redirect to login if not logged in
     if (request.nextUrl.pathname.startsWith('/dashboard') ||
         request.nextUrl.pathname.startsWith('/driver') ||
-        request.nextUrl.pathname.startsWith('/admin')) {
+        request.nextUrl.pathname.startsWith('/admin') ||
+        request.nextUrl.pathname.startsWith('/map-assignment') ||
+        request.nextUrl.pathname.startsWith('/minimal-shop') ||
+        request.nextUrl.pathname.startsWith('/minimal-driver')) {
       if (!session) {
         console.log('No session found, redirecting to login');
         return NextResponse.redirect(new URL('/login', request.url));
@@ -167,5 +170,8 @@ export const config = {
     '/dashboard/:path*',
     '/driver/:path*',
     '/admin/:path*',
+    '/map-assignment/:path*',
+    '/minimal-shop/:path*',
+    '/minimal-driver/:path*',
   ],
 };
