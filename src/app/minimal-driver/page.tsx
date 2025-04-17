@@ -7,7 +7,16 @@ import LogoPlaceholder from '@/components/logo-placeholder';
 import Html5QRScanner from '@/components/Html5QrScanner';
 import EnhancedDriverNotifications from '@/components/enhanced-driver-notifications';
 import DriverOrderCard from '@/components/driver-order-card';
+import DriverAuthCheck from '@/components/driver-auth-check';
 import { supabase } from '@/lib/supabase-singleton';
+
+export default function MinimalDriver() {
+  return (
+    <DriverAuthCheck>
+      <MinimalDriverContent />
+    </DriverAuthCheck>
+  );
+}
 
 function MinimalDriverContent() {
   const [user, setUser] = useState<any>(null);
@@ -1442,13 +1451,4 @@ function MinimalDriverContent() {
   );
 }
 
-// Wrapper component with authentication protection
-import SupabaseProtectedRoute from '@/components/supabase-protected-route';
-
-export default function MinimalDriverPage() {
-  return (
-    <SupabaseProtectedRoute requiredRole="driver" redirectTo="/driver-login">
-      <MinimalDriverContent />
-    </SupabaseProtectedRoute>
-  );
-}
+// We're now using DriverAuthCheck instead of SupabaseProtectedRoute

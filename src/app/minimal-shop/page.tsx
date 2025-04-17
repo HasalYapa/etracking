@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { QRCodeSVG } from 'qrcode.react';
 import RealTimeClock from '@/components/real-time-clock';
 import LogoPlaceholder from '@/components/logo-placeholder';
+import ShopAuthCheck from '@/components/shop-auth-check';
 import { supabase } from '@/lib/supabase';
 
 // Hardcoded shop owner ID (Sampath)
@@ -20,6 +21,14 @@ const generateTrackingNumber = () => {
   const randomPart = Math.floor(10000000 + Math.random() * 90000000);
   return `ET${randomPart}`;
 };
+
+export default function MinimalShop() {
+  return (
+    <ShopAuthCheck>
+      <MinimalShopContent />
+    </ShopAuthCheck>
+  );
+}
 
 function MinimalShopContent() {
   const [loading, setLoading] = useState(true);
@@ -1028,13 +1037,4 @@ function MinimalShopContent() {
   );
 }
 
-// Wrapper component with authentication protection
-import SupabaseProtectedRoute from '@/components/supabase-protected-route';
-
-export default function MinimalShopPage() {
-  return (
-    <SupabaseProtectedRoute requiredRole="shop_owner" redirectTo="/shop-login">
-      <MinimalShopContent />
-    </SupabaseProtectedRoute>
-  );
-}
+// We're now using ShopAuthCheck instead of SupabaseProtectedRoute

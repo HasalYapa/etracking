@@ -37,7 +37,10 @@ export default function DriverLogin() {
 
           if (profileData.role === 'driver') {
             console.log('DriverLogin: User is a driver, redirecting to driver dashboard');
-            router.push('/minimal-driver');
+            // Use router.push with a small delay to ensure session is established
+            setTimeout(() => {
+              router.push('/minimal-driver');
+            }, 100);
           } else {
             console.log(`DriverLogin: User is not a driver (${profileData.role}), staying on login page`);
           }
@@ -103,11 +106,13 @@ export default function DriverLogin() {
 
       setSuccess(`Login successful! Welcome, ${profile.name || 'Driver'}. Redirecting...`);
 
-      // Force a delay to ensure session is properly established
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Redirect to minimal driver dashboard using Next.js router
+      // Use the Next.js router for redirection
       console.log('DriverLogin: Redirecting to driver dashboard');
+
+      // Force a delay to ensure session is properly established
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Use router.push for navigation within Next.js
       router.push('/minimal-driver');
     } catch (err: any) {
       console.error('DriverLogin: Unexpected error:', err);
