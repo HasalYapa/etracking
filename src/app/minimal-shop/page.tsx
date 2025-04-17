@@ -1029,13 +1029,12 @@ function MinimalShopContent() {
 }
 
 // Wrapper component with authentication protection
-import ProtectedRoute from '@/components/protected-route';
-import { useAuth } from '@/components/auth-provider';
+import SupabaseProtectedRoute from '@/components/supabase-protected-route';
 
 export default function MinimalShopPage() {
   return (
-    <ProtectedRoute requiredRole="shop_owner" redirectTo="/shop-login">
+    <SupabaseProtectedRoute requiredRole="shop_owner" redirectTo="/shop-login">
       <MinimalShopContent />
-    </ProtectedRoute>
+    </SupabaseProtectedRoute>
   );
 }

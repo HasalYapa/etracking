@@ -9,7 +9,7 @@ import EnhancedDriverNotifications from '@/components/enhanced-driver-notificati
 import DriverOrderCard from '@/components/driver-order-card';
 import { supabase } from '@/lib/supabase-singleton';
 
-export default function MinimalDriverPage() {
+function MinimalDriverContent() {
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -1439,5 +1439,16 @@ export default function MinimalDriverPage() {
         </div>
       </footer>
     </div>
+  );
+}
+
+// Wrapper component with authentication protection
+import SupabaseProtectedRoute from '@/components/supabase-protected-route';
+
+export default function MinimalDriverPage() {
+  return (
+    <SupabaseProtectedRoute requiredRole="driver" redirectTo="/driver-login">
+      <MinimalDriverContent />
+    </SupabaseProtectedRoute>
   );
 }
