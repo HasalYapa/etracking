@@ -96,14 +96,51 @@ export default function MinimalDriverPage() {
         // Try to get session from localStorage first
         let sessionToken = null;
         try {
-          const storedSession = localStorage.getItem('supabase.auth.token');
+          // Check for both possible localStorage keys
+          const supabaseKey = 'sb-slujerwtublzuxtzdtyw-auth-token';
+          const legacyKey = 'supabase.auth.token';
+
+          // First try the actual Supabase key format
+          let storedSession = localStorage.getItem(supabaseKey);
           if (storedSession) {
+            console.log('MinimalDriverPage: Found session using Supabase key format');
             const parsedSession = JSON.parse(storedSession);
-            if (parsedSession?.currentSession?.access_token) {
-              sessionToken = parsedSession.currentSession.access_token;
-              console.log('MinimalDriverPage: Found session token in localStorage');
+            if (parsedSession?.access_token) {
+              sessionToken = parsedSession.access_token;
+              console.log('MinimalDriverPage: Found access_token in Supabase format');
               if (debugMode) {
                 console.log('MinimalDriverPage: Session token:', sessionToken);
+              }
+            }
+          } else {
+            // Try legacy format as fallback
+            storedSession = localStorage.getItem(legacyKey);
+            if (storedSession) {
+              console.log('MinimalDriverPage: Found session using legacy key format');
+              const parsedSession = JSON.parse(storedSession);
+              if (parsedSession?.currentSession?.access_token) {
+                sessionToken = parsedSession.currentSession.access_token;
+                console.log('MinimalDriverPage: Found access_token in legacy format');
+                if (debugMode) {
+                  console.log('MinimalDriverPage: Session token:', sessionToken);
+                }
+              }
+            }
+          }
+
+          // If debug mode, log all localStorage keys
+          if (debugMode) {
+            console.log('MinimalDriverPage: All localStorage keys:', Object.keys(localStorage));
+            for (let i = 0; i < localStorage.length; i++) {
+              const key = localStorage.key(i);
+              if (key && key.includes('auth')) {
+                console.log(`MinimalDriverPage: Auth-related localStorage key found: ${key}`);
+                try {
+                  const value = localStorage.getItem(key);
+                  console.log(`MinimalDriverPage: Value for ${key}:`, value);
+                } catch (e) {
+                  console.error(`MinimalDriverPage: Error reading ${key}:`, e);
+                }
               }
             }
           }
@@ -161,6 +198,8 @@ export default function MinimalDriverPage() {
 
         // Fallback: Use direct Supabase client
         console.log('MinimalDriverPage: Falling back to direct Supabase session check');
+
+        // Try to get the session directly from Supabase
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
         if (!isMounted) return;
@@ -171,7 +210,67 @@ export default function MinimalDriverPage() {
         }
 
         if (!session) {
-          console.log('MinimalDriverPage: No active session found');
+          console.log('MinimalDriverPage: No active session found via getSession()');
+
+          // As a last resort, try to manually set the session if we have a token
+          if (sessionToken) {
+            console.log('MinimalDriverPage: Attempting to set session manually with token');
+            try {
+              const { data, error } = await supabase.auth.setSession({
+                access_token: sessionToken,
+                refresh_token: '',
+              });
+
+              if (error) {
+                console.error('MinimalDriverPage: Error setting session manually:', error);
+                setError('Authentication failed. Please log in again.');
+                setLoading(false);
+                return;
+              }
+
+              if (data.session) {
+                console.log('MinimalDriverPage: Successfully set session manually');
+                // Continue with the manually set session
+                const manualSession = data.session;
+                setUser(manualSession.user);
+
+                // Get profile
+                console.log('MinimalDriverPage: Fetching profile with manually set session...');
+                const { data: profileData, error: profileError } = await supabase
+                  .from('profiles')
+                  .select('*')
+                  .eq('id', manualSession.user.id)
+                  .single();
+
+                if (profileError) {
+                  console.error('MinimalDriverPage: Error fetching profile with manual session:', profileError);
+                  setError('Error fetching profile. Please try again.');
+                  setLoading(false);
+                  return;
+                }
+
+                setProfile(profileData);
+
+                // Verify this is a driver
+                if (profileData.role !== 'driver') {
+                  console.log('MinimalDriverPage: User is not a driver:', profileData.role);
+                  setError('Access denied. This dashboard is for drivers only.');
+                  setLoading(false);
+                  return;
+                }
+
+                // Load assignments for this driver
+                console.log('MinimalDriverPage: Loading driver assignments with manual session...');
+                await loadDriverAssignments(profileData.id);
+                console.log('MinimalDriverPage: Assignments loaded successfully with manual session');
+                setLoading(false);
+                return;
+              }
+            } catch (manualErr) {
+              console.error('MinimalDriverPage: Error in manual session setup:', manualErr);
+            }
+          }
+
           setError('No active session. Please log in.');
           setLoading(false);
           return;

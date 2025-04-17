@@ -10,7 +10,14 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const sessionToken = searchParams.get('session');
+    let sessionToken = searchParams.get('session');
+    const authHeader = request.headers.get('Authorization');
+
+    // Check for token in Authorization header
+    if (!sessionToken && authHeader && authHeader.startsWith('Bearer ')) {
+      sessionToken = authHeader.substring(7);
+      console.log('API: Found session token in Authorization header');
+    }
 
     // If no session token is provided, try to get the session from cookies
     if (!sessionToken) {
