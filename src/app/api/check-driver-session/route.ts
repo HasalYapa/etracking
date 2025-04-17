@@ -63,7 +63,7 @@ export async function GET(request: Request) {
           .from('orders')
           .select(`
             *,
-            customers(*)
+            customers:customers(*)
           `)
           .eq('driver_id', session.user.id)
           .order('created_at', { ascending: false });
@@ -128,7 +128,7 @@ export async function GET(request: Request) {
         .from('orders')
         .select(`
           *,
-          customers(*)
+          customers:customers(*)
         `)
         .eq('driver_id', user.id)
         .order('created_at', { ascending: false });

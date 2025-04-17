@@ -913,10 +913,32 @@ export default function MinimalDriverPage() {
                 <div>
                   {/* Only render the scanner component when the scanner is open */}
                   {scannerOpen && (
-                    <Html5QRScanner
-                      onScan={handleScan}
-                      onError={handleScanError}
-                    />
+                    <div className="scanner-container">
+                      <div className="mb-2 text-sm text-blue-600">
+                        Camera access required for scanning
+                      </div>
+                      <div className="relative">
+                        <div id="scanner-wrapper">
+                          {(() => {
+                            try {
+                              return (
+                                <Html5QRScanner
+                                  onScan={handleScan}
+                                  onError={handleScanError}
+                                />
+                              );
+                            } catch (err) {
+                              console.error('Error rendering scanner:', err);
+                              return (
+                                <div className="p-4 bg-red-100 text-red-700 rounded-lg">
+                                  Error initializing scanner. Please refresh the page and try again.
+                                </div>
+                              );
+                            }
+                          })()}
+                        </div>
+                      </div>
+                    </div>
                   )}
                 </div>
 

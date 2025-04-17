@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 
 interface Html5QRScannerProps {
-  onScan: (data: { trackingNumber: string; location: string; driverPhone?: string }) => void;
+  onScan: (data: { trackingNumber: string; location: string; driverPhone?: string; orderId?: string }) => void;
   onError?: (error: string) => void;
 }
 
@@ -130,10 +130,22 @@ export default function Html5QRScanner({ onScan, onError }: Html5QRScannerProps)
       setError(null);
       setIsScanning(true);
 
-      if (!scannerRef.current) {
-        scannerRef.current = new Html5Qrcode(scannerContainerId);
+      // Make sure the scanner container exists
+      const container = document.getElementById(scannerContainerId);
+      if (!container) {
+        throw new Error('Scanner container not found');
       }
 
+      // Always create a new scanner instance to avoid issues
+      if (scannerRef.current) {
+        try {
+          await scannerRef.current.stop();
+        } catch (e) {
+          console.log('Error stopping previous scanner instance:', e);
+        }
+      }
+
+      scannerRef.current = new Html5Qrcode(scannerContainerId);
       const scanner = scannerRef.current;
 
       // Get available cameras
@@ -224,9 +236,10 @@ export default function Html5QRScanner({ onScan, onError }: Html5QRScannerProps)
       );
     } catch (err: any) {
       console.error('Error starting scanner:', err);
-      setError('Error starting scanner: ' + err.message);
+      const errorMessage = err.message || 'Unknown error';
+      setError('Error starting scanner: ' + errorMessage);
       setIsScanning(false);
-      if (onError) onError('Error starting scanner: ' + err.message);
+      if (onError) onError('Error starting scanner: ' + errorMessage);
     }
   };
 
