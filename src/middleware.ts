@@ -48,7 +48,11 @@ export async function middleware(request: NextRequest) {
 
     // Auth routes - redirect to dashboard if already logged in
     if (request.nextUrl.pathname.startsWith('/login') ||
-        request.nextUrl.pathname.startsWith('/register')) {
+        request.nextUrl.pathname.startsWith('/register') ||
+        request.nextUrl.pathname.startsWith('/shop-login') ||
+        request.nextUrl.pathname.startsWith('/driver-login') ||
+        request.nextUrl.pathname.startsWith('/admin-login')) {
+      console.log('Auth route detected:', request.nextUrl.pathname);
       if (session) {
         try {
           // Get user profile to determine which dashboard to redirect to
@@ -78,10 +82,13 @@ export async function middleware(request: NextRequest) {
           if (profile) {
             console.log('User role from profile:', profile.role);
             if (profile.role === 'shop_owner') {
-              return NextResponse.redirect(new URL('/dashboard', request.url));
+              console.log('Middleware: Redirecting shop owner to minimal-shop');
+              return NextResponse.redirect(new URL('/minimal-shop', request.url));
             } else if (profile.role === 'driver') {
-              return NextResponse.redirect(new URL('/driver', request.url));
+              console.log('Middleware: Redirecting driver to minimal-driver');
+              return NextResponse.redirect(new URL('/minimal-driver', request.url));
             } else if (profile.role === 'admin') {
+              console.log('Middleware: Redirecting admin to admin dashboard');
               return NextResponse.redirect(new URL('/admin', request.url));
             }
           }
@@ -90,7 +97,8 @@ export async function middleware(request: NextRequest) {
         }
 
         // Default fallback
-        return NextResponse.redirect(new URL('/dashboard', request.url));
+        console.log('Middleware: Using default fallback redirection to minimal-shop');
+        return NextResponse.redirect(new URL('/minimal-shop', request.url));
       }
     }
 

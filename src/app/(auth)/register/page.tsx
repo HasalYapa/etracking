@@ -91,19 +91,27 @@ export default function Register() {
         }
 
         // Redirect based on role
+        console.log('Register: Redirecting based on role:', formData.role);
+
+        // Use direct window.location for more reliable redirection
         if (formData.role === 'shop_owner') {
-          router.push('/minimal-shop');
+          console.log('Register: Redirecting to minimal-shop');
+          window.location.href = '/minimal-shop';
         } else if (formData.role === 'driver') {
-          router.push('/minimal-driver');
+          console.log('Register: Redirecting to minimal-driver');
+          window.location.href = '/minimal-driver';
         } else if (formData.role === 'admin') {
-          router.push('/admin');
+          console.log('Register: Redirecting to admin');
+          window.location.href = '/admin';
         } else {
           // Default fallback
-          router.push('/minimal-shop');
+          console.log('Register: Using default fallback to minimal-shop');
+          window.location.href = '/minimal-shop';
         }
       } else {
         // Show a success message for email confirmation if needed
-        router.push('/login?registered=true');
+        console.log('Register: Redirecting to login with registered=true');
+        window.location.href = '/login?registered=true';
       }
     } catch (error: any) {
       console.error('Registration error:', error);

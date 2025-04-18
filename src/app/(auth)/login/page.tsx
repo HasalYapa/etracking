@@ -85,19 +85,21 @@ export default function Login() {
   // Helper function to redirect based on role
   const redirectBasedOnRole = (role: string) => {
     console.log('Redirecting based on role:', role);
+
+    // Use direct window.location for more reliable redirection
     if (role === 'shop_owner') {
       console.log('Redirecting to /minimal-shop');
-      router.push('/minimal-shop');
+      window.location.href = '/minimal-shop';
     } else if (role === 'driver') {
       console.log('Redirecting to /minimal-driver');
-      router.push('/minimal-driver');
+      window.location.href = '/minimal-driver';
     } else if (role === 'admin') {
       console.log('Redirecting to /admin');
-      router.push('/admin');
+      window.location.href = '/admin';
     } else {
       // Default fallback
       console.log('Redirecting to default /minimal-shop');
-      router.push('/minimal-shop');
+      window.location.href = '/minimal-shop';
     }
   };
 
