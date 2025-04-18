@@ -3,10 +3,10 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { QRCodeSVG } from 'qrcode.react';
-import RealTimeClock from '@/components/real-time-clock';
-import LogoPlaceholder from '@/components/logo-placeholder';
-import { supabase } from '@/lib/supabase-singleton';
-import ShopAuthCheck from '@/components/shop-auth-check';
+import RealTimeClock from './real-time-clock';
+import LogoPlaceholder from './logo-placeholder';
+import { supabase } from '../lib/supabase-singleton';
+import ShopAuthCheck from './shop-auth-check';
 
 export default function MinimalShop() {
   return (
@@ -19,7 +19,7 @@ export default function MinimalShop() {
 function MinimalShopContent() {
   // Get shopOwnerId from localStorage or from user session
   const [shopOwnerId, setShopOwnerId] = useState('');
-  
+
   useEffect(() => {
     // Get shop owner ID from localStorage or current user session
     const getShopId = async () => {
@@ -37,10 +37,10 @@ function MinimalShopContent() {
         }
       }
     };
-    
+
     getShopId();
   }, []);
-  
+
   // The rest of your component stays the same
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -52,7 +52,7 @@ function MinimalShopContent() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [availableDrivers, setAvailableDrivers] = useState([]);
   const [loadingDrivers, setLoadingDrivers] = useState(false);
-  
+
   // Form state
   const [formData, setFormData] = useState({
     customer_name: '',
@@ -61,19 +61,19 @@ function MinimalShopContent() {
     tracking_number: generateTrackingNumber(),
     autoAssignDriver: false
   });
-  
+
   // Generate ET tracking number
   function generateTrackingNumber() {
     const randomPart = Math.floor(10000000 + Math.random() * 90000000);
     return `ET${randomPart}`;
   }
-  
+
   useEffect(() => {
     if (!shopOwnerId) return;
-    
+
     fetchOrders();
     fetchAvailableDrivers();
-    
+
     // Set up real-time subscription to orders table
     const subscription = supabase
       .channel('orders-changes')
@@ -87,27 +87,27 @@ function MinimalShopContent() {
         fetchOrders();
       })
       .subscribe();
-    
+
     // Clean up subscription
     return () => {
       subscription.unsubscribe();
     };
   }, [shopOwnerId]); // Make this dependent on shopOwnerId
-  
+
   // Fetch available drivers
   const fetchAvailableDrivers = async () => {
     if (!shopOwnerId) return;
-    
+
     try {
       setLoadingDrivers(true);
       const response = await fetch(`/api/driver/find-available?shopOwnerId=${shopOwnerId}`);
       const data = await response.json();
-      
+
       if (data.error) {
         console.error('Error fetching available drivers:', data.error);
         return;
       }
-      
+
       setAvailableDrivers(data.data || []);
     } catch (error) {
       console.error('Error fetching available drivers:', error);
@@ -115,27 +115,27 @@ function MinimalShopContent() {
       setLoadingDrivers(false);
     }
   };
-  
+
   // Use shopOwnerId in your fetch requests
   const fetchOrders = async () => {
     if (!shopOwnerId) return;
-    
+
     try {
       setLoading(true);
       setError(null);
 
       const response = await fetch(`/api/direct-shop-orders?shopId=${shopOwnerId}`);
-      
+
       if (!response.ok) {
         throw new Error(`Failed to fetch orders: ${response.status}`);
       }
-      
+
       const data = await response.json();
-      
+
       if (!data.success) {
         throw new Error(data.error || 'Failed to fetch orders');
       }
-      
+
       setOrders(data.orders || []);
     } catch (err) {
       console.error('Error fetching orders:', err);
@@ -144,23 +144,23 @@ function MinimalShopContent() {
       setLoading(false);
     }
   };
-  
+
   const createCustomOrder = async () => {
     try {
       // Validate phone number
       if (!formData.customer_phone.startsWith('+94') || formData.customer_phone.length !== 12) {
         throw new Error('Phone number must start with +94 and contain 10 digits after that');
       }
-      
+
       setLoading(true);
       setError(null);
-      
+
       const orderData = {
         ...formData,
         shop_id: shopOwnerId,
         status: 'pending'
       };
-      
+
       const response = await fetch('/api/create-custom-order', {
         method: 'POST',
         headers: {
@@ -168,13 +168,13 @@ function MinimalShopContent() {
         },
         body: JSON.stringify(orderData),
       });
-      
+
       const data = await response.json();
-      
+
       if (!response.ok || !data.success) {
         throw new Error(data.error || 'Failed to create order');
       }
-      
+
       // Reset form
       setFormData({
         customer_name: '',
@@ -183,12 +183,12 @@ function MinimalShopContent() {
         tracking_number: generateTrackingNumber(),
         autoAssignDriver: false
       });
-      
+
       setShowOrderForm(false);
-      
+
       // Refresh orders
       fetchOrders();
-      
+
     } catch (err) {
       console.error('Error creating order:', err);
       setError(err.message || 'An error occurred while creating the order');
@@ -196,10 +196,10 @@ function MinimalShopContent() {
       setLoading(false);
     }
   };
-  
+
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
-    
+
     // Handle checkbox separately
     if (type === 'checkbox') {
       setFormData(prev => ({
@@ -213,7 +213,7 @@ function MinimalShopContent() {
       }));
     }
   };
-  
+
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6 w-full">
@@ -237,7 +237,7 @@ function MinimalShopContent() {
                 </svg>
                 New Order
               </button>
-              
+
               <Link
                 href="/"
                 className="px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors shadow-sm flex items-center"
@@ -250,7 +250,7 @@ function MinimalShopContent() {
             </div>
           </div>
         </header>
-        
+
         {error && (
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
             <p className="font-bold">Error:</p>
@@ -263,7 +263,7 @@ function MinimalShopContent() {
             </button>
           </div>
         )}
-        
+
         {/* Order Statistics */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <div className="bg-white shadow-md rounded-xl p-5 border-l-4 border-blue-500">
@@ -279,7 +279,7 @@ function MinimalShopContent() {
               </div>
             </div>
           </div>
-          
+
           <div className="bg-white shadow-md rounded-xl p-5 border-l-4 border-yellow-500">
             <div className="flex justify-between items-center">
               <div>
@@ -293,7 +293,7 @@ function MinimalShopContent() {
               </div>
             </div>
           </div>
-          
+
           <div className="bg-white shadow-md rounded-xl p-5 border-l-4 border-blue-500">
             <div className="flex justify-between items-center">
               <div>
@@ -308,7 +308,7 @@ function MinimalShopContent() {
               </div>
             </div>
           </div>
-          
+
           <div className="bg-white shadow-md rounded-xl p-5 border-l-4 border-green-500">
             <div className="flex justify-between items-center">
               <div>
@@ -323,7 +323,7 @@ function MinimalShopContent() {
             </div>
           </div>
         </div>
-        
+
         {/* Orders List */}
         <div className="bg-white shadow-md rounded-xl p-5">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
@@ -344,7 +344,7 @@ function MinimalShopContent() {
               </select>
             </div>
           </div>
-          
+
           {loading ? (
             <div className="flex justify-center items-center h-60">
               <div className="text-center">
@@ -398,7 +398,7 @@ function MinimalShopContent() {
             </div>
           )}
         </div>
-        
+
         {/* New Order Form Modal */}
         {showOrderForm && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -406,7 +406,7 @@ function MinimalShopContent() {
               <div className="p-6">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-semibold text-gray-900">Create New Order</h3>
-                  <button 
+                  <button
                     onClick={() => setShowOrderForm(false)}
                     className="text-gray-400 hover:text-gray-500"
                   >
@@ -415,7 +415,7 @@ function MinimalShopContent() {
                     </svg>
                   </button>
                 </div>
-                
+
                 <form onSubmit={(e) => { e.preventDefault(); createCustomOrder(); }}>
                   <div className="space-y-4">
                     <div>
@@ -429,7 +429,7 @@ function MinimalShopContent() {
                         className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                       />
                     </div>
-                    
+
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Phone Number</label>
                       <input
@@ -442,7 +442,7 @@ function MinimalShopContent() {
                       />
                       <p className="mt-1 text-xs text-gray-500">Format: +94XXXXXXXXX</p>
                     </div>
-                    
+
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Delivery Address</label>
                       <textarea
@@ -454,7 +454,7 @@ function MinimalShopContent() {
                         className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                       />
                     </div>
-                    
+
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Tracking Number</label>
                       <input
@@ -467,7 +467,7 @@ function MinimalShopContent() {
                         className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-50 sm:text-sm"
                       />
                     </div>
-                    
+
                     <div className="flex items-center">
                       <input
                         type="checkbox"
@@ -482,7 +482,7 @@ function MinimalShopContent() {
                       </label>
                     </div>
                   </div>
-                  
+
                   <div className="mt-6 flex justify-end space-x-3">
                     <button
                       type="button"

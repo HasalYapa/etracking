@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { supabase } from '@/lib/supabase-singleton';
+import { supabase } from '../lib/supabase-singleton';
 
 export default function ShopAuthCheck({ children }) {
   const [loading, setLoading] = useState(true);
