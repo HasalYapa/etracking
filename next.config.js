@@ -6,9 +6,9 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  // Explicitly set the app directory to false for the conflicting routes
+  // Disable the App Router completely
   experimental: {
-    appDir: false,
+    appRouterExperiment: false,
   },
   // Redirect conflicting routes from app to pages
   async redirects() {

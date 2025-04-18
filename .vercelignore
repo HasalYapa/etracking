@@ -1,0 +1,2 @@
+# Ignore the app directory to avoid conflicts with pages
+src/app
