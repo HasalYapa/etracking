@@ -1,6 +1,7 @@
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase-singleton';
+import { useEffect, useState, useRef } from 'react';
+import { supabase } from '../lib/supabase-singleton';
+import TypeWriter from '../components/TypeWriter';
 
 export default function HomePage() {
   const [user, setUser] = useState(null);
@@ -10,10 +11,10 @@ export default function HomePage() {
   useEffect(() => {
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      
+
       if (session) {
         setUser(session.user);
-        
+
         // Get user role
         try {
           const { data: profile, error } = await supabase
@@ -21,7 +22,7 @@ export default function HomePage() {
             .select('role')
             .eq('id', session.user.id)
             .single();
-            
+
           if (profile) {
             setUserRole(profile.role);
           }
@@ -29,17 +30,17 @@ export default function HomePage() {
           console.error("Error fetching user role:", err);
         }
       }
-      
+
       setLoading(false);
     };
 
     checkSession();
-    
+
     // Set up auth state change listener
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session) {
         setUser(session.user);
-        
+
         // Get user role
         try {
           const { data: profile, error } = await supabase
@@ -47,7 +48,7 @@ export default function HomePage() {
             .select('role')
             .eq('id', session.user.id)
             .single();
-            
+
           if (profile) {
             setUserRole(profile.role);
           }
@@ -58,10 +59,10 @@ export default function HomePage() {
         setUser(null);
         setUserRole(null);
       }
-      
+
       setLoading(false);
     });
-    
+
     return () => {
       authListener.subscription.unsubscribe();
     };
@@ -78,9 +79,14 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-gray-100">
       <div className="py-10">
-        <header>
+        <header className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-8 rounded-lg shadow-lg">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h1 className="text-3xl font-bold leading-tight text-gray-900">etracking.store</h1>
+            <h1 className="text-4xl font-bold leading-tight">
+              <TypeWriter text="etracking.store" speed={150} className="font-bold" />
+            </h1>
+            <p className="mt-3 text-xl">
+              Simple, Real-Time Delivery Tracking for Sri Lankan Small Businesses
+            </p>
           </div>
         </header>
         <main>
@@ -121,7 +127,7 @@ export default function HomePage() {
               <div className="mt-8">
                 <h2 className="text-lg font-medium text-gray-900 mb-4">Quick Actions</h2>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  
+
                   {/* Shop Owner Links */}
                   <div className="bg-white overflow-hidden shadow rounded-lg">
                     <div className="px-4 py-5 sm:p-6">
@@ -169,7 +175,7 @@ export default function HomePage() {
                       </div>
                     </div>
                   </div>
-                  
+
                 </div>
               </div>
 
