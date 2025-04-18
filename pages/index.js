@@ -21,7 +21,12 @@ export default function HomePage() {
             .from('profiles')
             .select('role')
             .eq('id', session.user.id)
-            .single();
+            .maybeSingle();
+
+          if (error) {
+            console.error('Error fetching profile:', error);
+            return;
+          }
 
           if (profile) {
             setUserRole(profile.role);
@@ -47,7 +52,12 @@ export default function HomePage() {
             .from('profiles')
             .select('role')
             .eq('id', session.user.id)
-            .single();
+            .maybeSingle();
+
+          if (error) {
+            console.error('Error fetching profile:', error);
+            return;
+          }
 
           if (profile) {
             setUserRole(profile.role);

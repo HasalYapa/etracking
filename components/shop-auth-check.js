@@ -28,15 +28,49 @@ export default function ShopAuthCheck({ children }) {
           .from('profiles')
           .select('role')
           .eq('id', session.user.id)
-          .single();
-
-        console.log("ShopAuthCheck - User profile:", profile);
+          .maybeSingle();
 
         if (error) {
-          console.error("ShopAuthCheck - Error fetching profile:", error);
+          console.error('ShopAuthCheck - Error fetching profile:', error);
           router.push('/shop-login');
           return;
         }
+
+        if (!profile) {
+          console.log('ShopAuthCheck - No profile found, creating one');
+          // Create a profile if it doesn't exist
+          const { error: insertError } = await supabase
+            .from('profiles')
+            .insert({
+              id: session.user.id,
+              email: session.user.email,
+              role: 'shop_owner', // Default role
+              created_at: new Date().toISOString(),
+            });
+
+          if (insertError) {
+            console.error('ShopAuthCheck - Error creating profile:', insertError);
+            router.push('/shop-login');
+            return;
+          }
+
+          // Fetch the profile again
+          const { data: newProfile, error: fetchError } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', session.user.id)
+            .maybeSingle();
+
+          if (fetchError || !newProfile) {
+            console.error('ShopAuthCheck - Error fetching new profile:', fetchError);
+            router.push('/shop-login');
+            return;
+          }
+
+          profile = newProfile;
+        }
+
+        console.log("ShopAuthCheck - User profile:", profile);
 
         if (profile.role !== 'shop_owner') {
           console.log("ShopAuthCheck - Not a shop owner, redirecting");
