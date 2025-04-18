@@ -19,19 +19,26 @@ export default function ShopAuthCheck({ children }: ShopAuthCheckProps) {
       try {
         console.log('ShopAuthCheck: Checking authentication...');
         const { data: { session } } = await supabase.auth.getSession();
+        console.log('ShopAuthCheck: Session:', session);
 
         if (!session) {
           console.log('ShopAuthCheck: No session found, redirecting to login');
-          router.push('/shop-login');
+          router.push('/shop-login', { replace: true });
           return;
         }
 
+        console.log('ShopAuthCheck: User ID:', session.user.id);
+
         // Verify that the user has the correct role
+        console.log('ShopAuthCheck: Fetching profile for user ID:', session.user.id);
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('role')
           .eq('id', session.user.id)
           .single();
+
+        console.log('ShopAuthCheck: Profile data:', profile);
+        console.log('ShopAuthCheck: Profile error:', profileError);
 
         if (profileError) {
           console.error('ShopAuthCheck: Error fetching profile:', profileError);
@@ -44,10 +51,10 @@ export default function ShopAuthCheck({ children }: ShopAuthCheckProps) {
           console.error(`ShopAuthCheck: User is not a shop owner (${profile.role})`);
           setError('Access denied. This page is for shop owners only.');
           setIsLoading(false);
-          
+
           // Sign out and redirect to login
           await supabase.auth.signOut();
-          router.push('/shop-login');
+          router.push('/shop-login', { replace: true });
           return;
         }
 
@@ -79,7 +86,7 @@ export default function ShopAuthCheck({ children }: ShopAuthCheckProps) {
           <div className="text-red-600 text-xl font-semibold mb-4">Authentication Error</div>
           <p className="text-gray-700 mb-4">{error}</p>
           <button
-            onClick={() => router.push('/shop-login')}
+            onClick={() => router.push('/shop-login', { replace: true })}
             className="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700"
           >
             Go to Login

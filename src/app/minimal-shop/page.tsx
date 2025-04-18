@@ -6,7 +6,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import RealTimeClock from '@/components/real-time-clock';
 import LogoPlaceholder from '@/components/logo-placeholder';
 import ShopAuthCheck from '@/components/shop-auth-check';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase-singleton';
 
 // Hardcoded shop owner ID (Sampath)
 const shopOwnerId = '9939c3f3-e3fc-4af7-9ecd-31ab535bce59';
