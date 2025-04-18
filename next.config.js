@@ -7,29 +7,8 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   // Disable the App Router completely
-  experimental: {
-    appRouterExperiment: false,
-  },
-  // Redirect conflicting routes from app to pages
-  async redirects() {
-    return [
-      {
-        source: '/driver-dashboard',
-        destination: '/driver-dashboard',
-        permanent: true,
-      },
-      {
-        source: '/driver-login',
-        destination: '/driver-login',
-        permanent: true,
-      },
-      {
-        source: '/minimal-driver',
-        destination: '/minimal-driver',
-        permanent: true,
-      },
-    ];
-  },
+  useFileSystemPublicRoutes: true,
+  pageExtensions: ['js', 'jsx', 'ts', 'tsx'],
 }
 
 module.exports = nextConfig
