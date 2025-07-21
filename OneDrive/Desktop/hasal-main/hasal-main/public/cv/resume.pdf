@@ -1,0 +1,9 @@
+This is a placeholder for your CV/Resume PDF file.
+Replace this file with your actual CV.
+
+To add your CV:
+1. Save your CV as "resume.pdf" 
+2. Replace this file in the public/cv/ directory
+3. The download button in the navbar will link to this file
+
+The CV download link is: /cv/resume.pdf 
